@@ -6,22 +6,27 @@
 
 static shaderprogram *sp;
 static GLint vattr;
-static array_buffer *model_vbuf;
+static array_buffer *cube_vbuf;
+static element_array_buffer *cube_ebuf;
 static GLint resolution_unif, time_unif, modelmat_unif, color_unif;
 static shader *vs, *fs;
 static vertexarray *vao;
+static float fov = 106.26;
 
 static void graphics_load(screen *s) {
   // s->lock_mouse();
 
-  glClearColor(0.05f, 0.05f, 0.05f, 1);
+  glEnable(GL_DEPTH_TEST);
+
+  glClearColor(0.055f, 0.055f, 0.055f, 1);
 
   const char *vsrc = _glsl(
-    attribute vec2 vertex_pos;
+    attribute vec3 vertex_pos;
     uniform mat4 model;
+    uniform mat4 view;
     uniform mat4 projection;
     void main() {
-      gl_Position = projection * model * vec4(vertex_pos, 0.0, 1.0);
+      gl_Position = projection * view * model * vec4(vertex_pos, 1.0);
     }
   );
   const char *fsrc = _glsl(
@@ -39,33 +44,45 @@ static void graphics_load(screen *s) {
 
   vattr = sp->bind_attrib("vertex_pos");
   resolution_unif = sp->bind_uniform("iResolution");
+  time_unif = sp->bind_uniform("iGlobalTime");
   modelmat_unif = sp->bind_uniform("model");
   color_unif = sp->bind_uniform("color");
 
-  const std::vector<float> cube_verts = {
-    0, 1, 1, 0, 0, 0,
-    0, 1, 1, 1, 1, 0
-  };
   vao = new vertexarray;
-  model_vbuf = new array_buffer;
+  cube_vbuf = new array_buffer;
+  cube_ebuf = new element_array_buffer;
   vao->bind();
-  model_vbuf->bind();
-  model_vbuf->upload(cube_verts);
-  glVertexAttribPointer(vattr, 2, GL_FLOAT, GL_FALSE, 0, 0);
+  cube_vbuf->bind();
+  const std::vector<float> cube_verts = {
+    -1, -1,  1, 1, -1,  1, 1,  1,  1, -1,  1,  1,
+    -1, -1, -1, 1, -1, -1, 1,  1, -1, -1,  1, -1,
+  };
+  cube_vbuf->upload(cube_verts);
+  glVertexAttribPointer(vattr, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  cube_ebuf->bind();
+  const std::vector<GLushort> cube_elements = {
+    0, 1, 2, 2, 3, 0, 1, 5, 6, 6, 2, 1, 7, 6, 5, 5, 4, 7,
+    4, 0, 3, 3, 7, 4, 4, 5, 1, 1, 0, 4, 3, 2, 6, 6, 7, 3,
+  };
+  cube_ebuf->upload(cube_elements);
   glEnableVertexAttribArray(vattr);
   vao->unbind();
   glDisableVertexAttribArray(vattr);
-  model_vbuf->unbind();
-
-  time_unif = sp->bind_uniform("iGlobalTime");
+  cube_vbuf->unbind();
+  cube_ebuf->unbind();
 
   sp->use_this_prog();
   glUniform2f(resolution_unif, s->window_width, s->window_height);
 
-  glm::mat4 projection_mat = glm::ortho(0.f, (float)s->window_width
-      , (float)s->window_height, 0.f, -1.f, 1.f);
+  glm::mat4 projection_mat = glm::perspective(fov, (float)s->window_width
+      / (float)s->window_height, 0.1f, 100.0f);
   glUniformMatrix4fv(sp->bind_uniform("projection"), 1, GL_FALSE
       , glm::value_ptr(projection_mat));
+
+  glm::mat4 view_mat = glm::lookAt(glm::vec3(2, 1, -10)
+      , glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+  glUniformMatrix4fv(sp->bind_uniform("view"), 1, GL_FALSE
+      , glm::value_ptr(view_mat));
   sp->dont_use_this_prog();
 }
 
@@ -88,35 +105,37 @@ static void update(double dt, double t, screen *s) {
   sp->dont_use_this_prog();
 }
 
-static void draw_square(glm::vec2 pos, glm::vec2 size, float rotation
+static void draw_cube(glm::vec3 pos, glm::vec2 size, float rotation
     , glm::vec3 color) {
   glm::mat4 model;
-  glm::vec2 rotation_pivot(0.5, 0.5);
-  model = glm::translate(model, glm::vec3(pos, 0.f));
-  model = glm::rotate(model, to_radians(rotation), glm::vec3(0.f, 0.f, 1.f));
-  model = glm::scale(model, glm::vec3(size, 1.f));
-  model = glm::translate(model, glm::vec3(-rotation_pivot, 0.f));
+  glm::vec3 rotation_pivot(0, 0, 0);
+  model = glm::translate(model, pos);
+  model = glm::rotate(model, to_radians(rotation), glm::vec3(0, 0, 1));
+  model = glm::scale(model, glm::vec3(size, 1));
+  model = glm::translate(model, -rotation_pivot);
 
   sp->use_this_prog();
   glUniformMatrix4fv(modelmat_unif, 1, GL_FALSE, glm::value_ptr(model));
   glUniform3f(color_unif, color.x, color.y, color.z);
   vao->bind();
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  int ebuf_size;
+  glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &ebuf_size);
+  glDrawElements(GL_TRIANGLES, ebuf_size / sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
   vao->unbind();
   sp->dont_use_this_prog();
 }
 
 static void draw(double alpha) {
-  glClear(GL_COLOR_BUFFER_BIT);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  draw_square(glm::vec2(100, 200), glm::vec2(10, 10), 90, glm::vec3(1, 0, 1));
+  draw_cube(glm::vec3(0, 0, 0), glm::vec2(1, 1), 90, glm::vec3(1, 0, 1));
 }
 
 static void cleanup() {
   delete vs;
   delete fs;
   delete sp;
-  delete model_vbuf;
+  delete cube_vbuf;
   delete vao;
 }
 

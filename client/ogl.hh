@@ -36,6 +36,15 @@ public:
   }
 };
 
+class element_array_buffer : public ogl_buffer {
+public:
+  element_array_buffer() : ogl_buffer(GL_ELEMENT_ARRAY_BUFFER) {}
+  void upload(const std::vector<GLushort> &data) {
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, data.size() * sizeof(data[0])
+        , data.data(), GL_STATIC_DRAW);
+  }
+};
+
 static std::string get_ogl_shader_err(GLint loglen
     , void (*ogl_errmsg_func)(GLuint, GLsizei, GLsizei*, GLchar*)
     , GLuint id) {
