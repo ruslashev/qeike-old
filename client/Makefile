@@ -29,6 +29,6 @@ objdir:
 	@mkdir -p .objs
 
 clean:
-	@echo rm -f qeike
-	@echo rm -f $(OBJS)
+	@rm -f qeike
+	@rm -f $(OBJS)
 
