@@ -1,3 +1,4 @@
+#include "camera.hh"
 #include "ogl.hh"
 #include "screen.hh"
 #include "utils.hh"
@@ -8,13 +9,14 @@ static shaderprogram *sp;
 static GLint vattr;
 static array_buffer *cube_vbuf;
 static element_array_buffer *cube_ebuf;
-static GLint resolution_unif, time_unif, modelmat_unif, color_unif;
+static GLint resolution_unif, time_unif, modelmat_unif, viewmat_unif, color_unif;
 static shader *vs, *fs;
 static vertexarray *vao;
+static camera *cam;
 static float fov = 106.26;
 
 static void graphics_load(screen *s) {
-  // s->lock_mouse();
+  s->lock_mouse();
 
   glEnable(GL_DEPTH_TEST);
 
@@ -46,6 +48,7 @@ static void graphics_load(screen *s) {
   resolution_unif = sp->bind_uniform("iResolution");
   time_unif = sp->bind_uniform("iGlobalTime");
   modelmat_unif = sp->bind_uniform("model");
+  viewmat_unif = sp->bind_uniform("view");
   color_unif = sp->bind_uniform("color");
 
   vao = new vertexarray;
@@ -78,12 +81,9 @@ static void graphics_load(screen *s) {
       / (float)s->window_height, 0.1f, 100.0f);
   glUniformMatrix4fv(sp->bind_uniform("projection"), 1, GL_FALSE
       , glm::value_ptr(projection_mat));
-
-  glm::mat4 view_mat = glm::lookAt(glm::vec3(2, 1, -10)
-      , glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-  glUniformMatrix4fv(sp->bind_uniform("view"), 1, GL_FALSE
-      , glm::value_ptr(view_mat));
   sp->dont_use_this_prog();
+
+  cam = new camera(2, 1, -10);
 }
 
 static void load(screen *s) {
@@ -94,6 +94,7 @@ static void key_event(char key, bool down) {
 }
 
 static void mouse_motion_event(float xrel, float yrel, int x, int y) {
+  cam->update(xrel, yrel);
 }
 
 static void mouse_button_event(int button, bool down) {
@@ -114,7 +115,6 @@ static void draw_cube(glm::vec3 pos, glm::vec2 size, float rotation
   model = glm::scale(model, glm::vec3(size, 1));
   model = glm::translate(model, -rotation_pivot);
 
-  sp->use_this_prog();
   glUniformMatrix4fv(modelmat_unif, 1, GL_FALSE, glm::value_ptr(model));
   glUniform3f(color_unif, color.x, color.y, color.z);
   vao->bind();
@@ -122,13 +122,17 @@ static void draw_cube(glm::vec3 pos, glm::vec2 size, float rotation
   glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &ebuf_size);
   glDrawElements(GL_TRIANGLES, ebuf_size / sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
   vao->unbind();
-  sp->dont_use_this_prog();
 }
 
 static void draw(double alpha) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+  sp->use_this_prog();
+  glUniformMatrix4fv(viewmat_unif, 1, GL_FALSE
+      , glm::value_ptr(cam->compute_view_mat()));
+
   draw_cube(glm::vec3(0, 0, 0), glm::vec2(1, 1), 90, glm::vec3(1, 0, 1));
+  sp->dont_use_this_prog();
 }
 
 static void cleanup() {
