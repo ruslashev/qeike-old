@@ -2,7 +2,7 @@ OBJS = $(patsubst ./%.cc,.objs/%.o, $(shell find . -type f -name '*.cc'))
 warnings = -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-unused-variable \
 		   -Wduplicated-cond -Wdouble-promotion -Wnull-dereference -Wformat=2 \
 		   -Wdisabled-optimization -ftabstop=2 -Wsuggest-override -Wconversion \
-		   -Wsign-conversion -Wlogical-op
+		   -Wsign-conversion -Wlogical-op -Wno-float-conversion
 		   # -Wpadded
 flags = -ggdb3 -Og -std=c++0x -fno-rtti
 libraries = -lSDL2 -lGLEW -lGL

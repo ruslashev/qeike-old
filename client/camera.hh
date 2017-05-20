@@ -7,7 +7,8 @@ class camera {
 public:
   camera();
   camera(float n_pos_x, float n_pos_y, float n_pos_z);
-  void update(float xrel, float yrel);
+  void update_view_angles(float xrel, float yrel);
+  void update_position(double dt, int move, int strafe);
   glm::mat4 compute_view_mat() const;
 };
 

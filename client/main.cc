@@ -14,6 +14,7 @@ static shader *vs, *fs;
 static vertexarray *vao;
 static camera *cam;
 static float fov = 106.26f;
+static int move, strafe;
 
 static void graphics_load(screen *s) {
   s->lock_mouse();
@@ -92,10 +93,39 @@ static void load(screen *s) {
 }
 
 static void key_event(char key, bool down) {
+  static bool forward = false, backward = false, left = false, right = false;
+  switch (key) {
+    case 'w':
+      forward = down;
+      break;
+    case 's':
+      backward = down;
+      break;
+    case 'd':
+      right = down;
+      break;
+    case 'a':
+      left = down;
+      break;
+    default:
+      break;
+  }
+  if (forward == backward)
+    move = 0;
+  else if (forward)
+    move = 1;
+  else if (backward)
+    move = -1;
+  if (right == left)
+    strafe = 0;
+  else if (right)
+    strafe = 1;
+  else if (left)
+    strafe = -1;
 }
 
 static void mouse_motion_event(float xrel, float yrel, int x, int y) {
-  cam->update(xrel, yrel);
+  cam->update_view_angles(xrel, yrel);
 }
 
 static void mouse_button_event(int button, bool down) {
@@ -105,6 +135,7 @@ static void update(double dt, double t, screen *s) {
   sp->use_this_prog();
   glUniform1f(time_unif, static_cast<GLfloat>(t));
   sp->dont_use_this_prog();
+  cam->update_position(dt, move, strafe);
 }
 
 static void draw_cube(glm::vec3 pos, glm::vec2 size, float rotation
