@@ -53,3 +53,15 @@ glm::mat4 camera::compute_view_mat() const {
   return glm::lookAt(position, look_at, glm::vec3(0, 1, 0));
 }
 
+float camera::pos_x() const {
+  return _pos_x;
+}
+
+float camera::pos_y() const {
+  return _pos_y;
+}
+
+float camera::pos_z() const {
+  return _pos_z;
+}
+

@@ -10,5 +10,8 @@ public:
   void update_view_angles(float xrel, float yrel);
   void update_position(double dt, int move, int strafe);
   glm::mat4 compute_view_mat() const;
+  float pos_x() const;
+  float pos_y() const;
+  float pos_z() const;
 };
 
