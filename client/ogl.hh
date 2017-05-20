@@ -87,7 +87,7 @@ struct shader {
             , type == GL_VERTEX_SHADER ? "vertex" : "fragment"
             , msg.c_str());
       else
-        printf("%s shader diagnostic message:\n###\n%s###\n"
+        printf("### %s shader diagnostic message:\n%s\n### diagnostic message end\n"
             , type == GL_VERTEX_SHADER ? "vertex" : "fragment"
             , msg.c_str());
     }
@@ -118,7 +118,7 @@ struct shaderprogram {
         die("failed to link a program:\n%s"
             , msg.c_str());
       } else
-        printf("shader program diagnostic message:\n###\n%s###\n"
+        printf("### shader program diagnostic message:\n%s\n### diagnostic message end\n"
             , msg.c_str());
     }
   }

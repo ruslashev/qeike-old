@@ -13,8 +13,9 @@ static GLint resolution_unif, time_unif, model_mat_unif, view_mat_unif
 static shader *vs, *fs;
 static vertexarray *vao;
 static camera *cam;
-static float fov = 106.26f, screen_aspect_ratio;
+static float fov = 45, screen_aspect_ratio;
 static int move, strafe;
+static glm::vec3 light_pos = glm::vec3(0, 1.5, 0);
 
 static void graphics_load(screen *s) {
   s->lock_mouse();
@@ -107,7 +108,7 @@ static void graphics_load(screen *s) {
   cube_vbuf->upload(cube_verts);
   glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
   glEnableVertexAttribArray(vertex_pos_attr);
-  glVertexAttribPointer(vertex_normal_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (GLvoid*)(3 * sizeof(GLfloat)));
+  glVertexAttribPointer(vertex_normal_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (GLvoid*)(3 * sizeof(float)));
   glEnableVertexAttribArray(vertex_normal_attr);
   vao->unbind();
   glDisableVertexAttribArray(vertex_pos_attr);
@@ -115,8 +116,8 @@ static void graphics_load(screen *s) {
   cube_vbuf->unbind();
 
   sp->use_this_prog();
-  glUniform2f(resolution_unif, static_cast<GLfloat>(s->window_width)
-      , static_cast<GLfloat>(s->window_height));
+  glUniform2f(resolution_unif, static_cast<float>(s->window_width)
+      , static_cast<float>(s->window_height));
   sp->dont_use_this_prog();
 
   screen_aspect_ratio = static_cast<float>(s->window_width)
@@ -164,11 +165,13 @@ static void update(double dt, double t, screen *s) {
   glUniform1f(time_unif, static_cast<GLfloat>(t));
   sp->dont_use_this_prog();
   cam->update_position(dt, move, strafe);
+  light_pos.x = cos(t) * 2;
+  light_pos.z = sin(t) * 2;
 }
 
 static void draw_cube(glm::vec3 pos, glm::vec3 size, glm::vec3 color) {
   glm::vec3 pivot(0, 0, 0);
-  glm::mat4 model = glm::translate(glm::mat4(), -pos);
+  glm::mat4 model = glm::translate(glm::mat4(), pos);
   model = glm::scale(model, size);
   model = glm::translate(model, -pivot);
 
@@ -187,14 +190,14 @@ static void draw(double alpha) {
       , glm::value_ptr(cam->compute_view_mat()));
 
   glUniformMatrix4fv(projection_mat_unif, 1, GL_FALSE
-      , glm::value_ptr(glm::perspective(fov, screen_aspect_ratio, 0.1f, 100.0f)));
+      , glm::value_ptr(glm::perspective(glm::radians(fov), screen_aspect_ratio, 0.1f, 100.0f)));
 
   glUniform3f(view_pos_unif, cam->pos_x(), cam->pos_y(), cam->pos_z());
-  glUniform3f(light_pos_unif, 0, 1.5f, 0);
+  glUniform3f(light_pos_unif, light_pos.x, light_pos.y, light_pos.z);
 
   draw_cube(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(1, 0, 1));
 
-  draw_cube(glm::vec3(0, 1.5, 0), glm::vec3(0.03), glm::vec3(1));
+  draw_cube(light_pos, glm::vec3(0.03), glm::vec3(1));
 
   sp->dont_use_this_prog();
 }
