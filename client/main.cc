@@ -6,14 +6,14 @@
 #include <glm/gtc/type_ptr.hpp>
 
 static shaderprogram *sp;
-static GLint vattr;
+static GLuint vattr;
 static array_buffer *cube_vbuf;
 static element_array_buffer *cube_ebuf;
 static GLint resolution_unif, time_unif, modelmat_unif, viewmat_unif, color_unif;
 static shader *vs, *fs;
 static vertexarray *vao;
 static camera *cam;
-static float fov = 106.26;
+static float fov = 106.26f;
 
 static void graphics_load(screen *s) {
   s->lock_mouse();
@@ -75,7 +75,8 @@ static void graphics_load(screen *s) {
   cube_ebuf->unbind();
 
   sp->use_this_prog();
-  glUniform2f(resolution_unif, s->window_width, s->window_height);
+  glUniform2f(resolution_unif, static_cast<GLfloat>(s->window_width)
+      , static_cast<GLfloat>(s->window_height));
 
   glm::mat4 projection_mat = glm::perspective(fov, (float)s->window_width
       / (float)s->window_height, 0.1f, 100.0f);
@@ -102,7 +103,7 @@ static void mouse_button_event(int button, bool down) {
 
 static void update(double dt, double t, screen *s) {
   sp->use_this_prog();
-  glUniform1f(time_unif, t);
+  glUniform1f(time_unif, static_cast<GLfloat>(t));
   sp->dont_use_this_prog();
 }
 
@@ -120,7 +121,8 @@ static void draw_cube(glm::vec3 pos, glm::vec2 size, float rotation
   vao->bind();
   int ebuf_size;
   glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &ebuf_size);
-  glDrawElements(GL_TRIANGLES, ebuf_size / sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+  glDrawElements(GL_TRIANGLES, ebuf_size
+      / static_cast<GLsizei>(sizeof(GLushort)), GL_UNSIGNED_SHORT, 0);
   vao->unbind();
 }
 

@@ -30,7 +30,8 @@ public:
   array_buffer() : ogl_buffer(GL_ARRAY_BUFFER) {}
   void upload(const std::vector<GLfloat> &data) {
     // bind();
-    glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(data[0]), data.data()
+    glBufferData(GL_ARRAY_BUFFER
+        , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
         , GL_STATIC_DRAW);
     // unbind();
   }
@@ -40,8 +41,9 @@ class element_array_buffer : public ogl_buffer {
 public:
   element_array_buffer() : ogl_buffer(GL_ELEMENT_ARRAY_BUFFER) {}
   void upload(const std::vector<GLushort> &data) {
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, data.size() * sizeof(data[0])
-        , data.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER
+        , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
+        , GL_STATIC_DRAW);
   }
 };
 
@@ -128,20 +130,21 @@ struct shaderprogram {
       const GLvoid *ptr) {
     buffer.bind();
     GLint attr = glGetAttribLocation(id, name);
-    glEnableVertexAttribArray(attr);
-    glVertexAttribPointer(attr, size, type, normalized, stride, ptr);
+    glEnableVertexAttribArray(static_cast<GLuint>(attr));
+    glVertexAttribPointer(static_cast<GLuint>(attr), size, type, normalized
+        , stride, ptr);
     buffer.unbind();
   }
-  GLint bind_attrib(const char *name) {
+  GLuint bind_attrib(const char *name) {
     GLint prev_active_prog;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prev_active_prog);
     use_this_prog();
     GLint attr = glGetAttribLocation(id, name);
     assertf(glGetError() == GL_NO_ERROR, "failed to bind attribute %s", name);
-    glUseProgram(prev_active_prog);
     if (attr == -1)
       printf("warning: failed to bind attribute %s\n", name);
-    return attr;
+    glUseProgram(static_cast<GLuint>(prev_active_prog));
+    return static_cast<GLuint>(attr);
   }
   GLint bind_uniform(const char *name) {
     GLint prev_active_prog;
@@ -149,9 +152,9 @@ struct shaderprogram {
     use_this_prog();
     GLint unif = glGetUniformLocation(id, name);
     assertf(glGetError() == GL_NO_ERROR, "failed to bind uniform %s", name);
-    glUseProgram(prev_active_prog);
     if (0) // (unif == -1)
       printf("warning: failed to bind uniform %s\n", name);
+    glUseProgram(static_cast<GLuint>(prev_active_prog));
     return unif;
   }
   void use_this_prog() {

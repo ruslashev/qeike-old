@@ -76,8 +76,9 @@ void screen::mainloop(void (*load_cb)(screen*)
             if (key_info != -1)
               key_event_cb(key_info, sdl_event.type == SDL_KEYDOWN);
           } else if (sdl_event.type == SDL_MOUSEMOTION)
-            mouse_motion_event_cb(sdl_event.motion.xrel, sdl_event.motion.yrel
-                , sdl_event.motion.x, sdl_event.motion.y);
+            mouse_motion_event_cb(static_cast<float>(sdl_event.motion.xrel)
+                , static_cast<float>(sdl_event.motion.yrel), sdl_event.motion.x
+                , sdl_event.motion.y);
           else if (sdl_event.type == SDL_MOUSEBUTTONDOWN
               || sdl_event.type == SDL_MOUSEBUTTONUP) {
             int button;
