@@ -1,3 +1,4 @@
+#include "bsp.hh"
 #include "camera.hh"
 #include "ogl.hh"
 #include "screen.hh"
@@ -16,6 +17,7 @@ static camera *cam;
 static float fov = 45, screen_aspect_ratio;
 static int move, strafe;
 static glm::vec3 light_pos = glm::vec3(0, 1.5, 0);
+static bsp *b;
 
 static void graphics_load(screen *s) {
   s->lock_mouse();
@@ -128,6 +130,7 @@ static void graphics_load(screen *s) {
 
 static void load(screen *s) {
   graphics_load(s);
+  b = new bsp("mapz/campgrounds.bsp");
 }
 
 static void key_event(char key, bool down) {
@@ -208,6 +211,8 @@ static void cleanup() {
   delete sp;
   delete cube_vbuf;
   delete vao;
+  delete cam;
+  delete b;
 }
 
 int main() {

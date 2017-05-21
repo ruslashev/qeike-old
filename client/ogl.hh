@@ -6,6 +6,55 @@
 #include <string>
 #include <cstring>
 
+void gl_error_description(GLenum err) {
+  switch (err) {
+    case GL_INVALID_ENUM:
+      puts("GL_INVALID_ENUM: An unacceptable value is specified for an\n"
+          "enumerated argument. The offending command is ignored and has\n"
+          "no other side effect than to set the error flag.");
+      break;
+    case GL_INVALID_VALUE:
+      puts("GL_INVALID_VALUE: A numeric argument is out of range. The\n"
+          "offending command is ignored and has no other side effect than\n"
+          "to set the error flag.");
+      break;
+    case GL_INVALID_OPERATION:
+      puts("GL_INVALID_OPERATION: The specified operation is not allowed in\n"
+          "the current state. The offending command is ignored and has no\n"
+          "other side effect than to set the error flag.");
+      break;
+    case GL_INVALID_FRAMEBUFFER_OPERATION:
+      puts("GL_INVALID_FRAMEBUFFER_OPERATION: The framebuffer object is not\n"
+          "complete. The offending command is ignored and has no other side\n"
+          "effect than to set the error flag.");
+      break;
+    case GL_OUT_OF_MEMORY:
+      puts("GL_OUT_OF_MEMORY: There is not enough memory left to execute the\n"
+          "command. The state of the GL is undefined, except for the state\n"
+          "of the error flags, after this error is recorded.");
+      break;
+    case GL_STACK_UNDERFLOW:
+      puts("GL_STACK_UNDERFLOW: An attempt has been made to perform an\n"
+          "operation that would cause an internal stack to underflow.");
+      break;
+    case GL_STACK_OVERFLOW:
+      puts("GL_STACK_OVERFLOW: An attempt has been made to perform an\n"
+          "operation that would cause an internal stack to overflow.");
+      break;
+    default:
+      break;
+  }
+}
+
+#define gl_check_errors() do { \
+  GLenum err = glGetError(); \
+  while (err != GL_NO_ERROR) { \
+    fprintf(stderr, "glError %d at %s:%d\n", err, __FILE__, __LINE__); \
+    gl_error_description(err); \
+    err = glGetError(); \
+  } \
+} while (0)
+
 class ogl_buffer {
 protected:
   GLuint _id;
@@ -29,11 +78,9 @@ class array_buffer : public ogl_buffer {
 public:
   array_buffer() : ogl_buffer(GL_ARRAY_BUFFER) {}
   void upload(const std::vector<GLfloat> &data) {
-    // bind();
     glBufferData(GL_ARRAY_BUFFER
         , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
         , GL_STATIC_DRAW);
-    // unbind();
   }
 };
 
