@@ -37,9 +37,10 @@ struct bsp_biquadratic_patch {
 
 struct bsp_plane {
   glm::vec3 normal;
-  float intercept;
+  float dist;
 
   bsp_plane();
+#if 0
   bsp_plane(glm::vec3 newNormal, float n_intercept);
   bsp_plane(const bsp_plane &rhs);
   void set_normal(const glm::vec3 &rhs);
@@ -56,6 +57,7 @@ struct bsp_plane {
   bool operator!=(const bsp_plane &rhs) const;
   bsp_plane operator-() const;
   bsp_plane operator+() const;
+#endif
 };
 
 struct bsp_node {
@@ -147,5 +149,8 @@ class bsp {
   bsp_visdata _visdata;
 public:
   bsp(const char *filename);
+  int find_leaf(glm::vec3 position);
+  int cluster_visible(int vis_cluster, int test_cluster);
+  void set_visible_faces(glm::vec3 camera_pos);
 };
 

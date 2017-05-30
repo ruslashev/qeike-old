@@ -106,9 +106,10 @@ void bsp_biquadratic_patch::tesselate(int n_subdivisions) {
 
 bsp_plane::bsp_plane()
   : normal(glm::vec3(0))
-  , intercept(0.0f) {
+  , dist(0.0f) {
 }
 
+#if 0
 bsp_plane::bsp_plane(glm::vec3 n_normal, float n_intercept)
   : normal(n_normal)
   , intercept(n_intercept) {
@@ -192,6 +193,7 @@ bsp_plane bsp_plane::operator-() const {
 bsp_plane bsp_plane::operator+() const {
   return (*this);
 }
+#endif
 
 bsp_vertex bsp_vertex::operator+(const bsp_vertex &v) const {
   bsp_vertex res;
@@ -292,8 +294,7 @@ bsp::bsp(const char *filename) {
     float temp = p.normal.y;
     p.normal.y = p.normal.z;
     p.normal.z = -temp;
-    p.intercept = -p.intercept;
-    p.intercept /= scale;
+    p.dist /= scale;
   }
 
   load_lump(ifs, &header, lump::nodes, _nodes);
@@ -402,5 +403,36 @@ bsp::bsp(const char *filename) {
 
   puts("ok");
   ifs.close();
+}
+
+int bsp::find_leaf(glm::vec3 position) {
+  int index = 0;
+  while (index >= 0) {
+    bsp_node *node = &_nodes[index];
+    bsp_plane *plane = &_planes[node->plane];
+    if (plane->normal.x * position.x + plane->normal.y * position.y
+        + plane->normal.z * position.z > plane->dist)
+      index = node->front;
+    else
+      index = node->back;
+  }
+  return -(index + 1); // leaf index
+}
+
+int bsp::cluster_visible(int vis_cluster, int test_cluster) {
+  if (vis_cluster < 0 || _visdata.vecs.size() == 0)
+    return 1;
+  int i = vis_cluster * _visdata.sz_vecs + (test_cluster >> 3);
+  unsigned char vis_set = _visdata.vecs[i];
+  return vis_set & (1 << (test_cluster & 7));
+}
+
+void bsp::set_visible_faces(glm::vec3 camera_pos) {
+  int leaf_index = find_leaf(camera_pos);
+  std::fill(_visible_faces.begin(), _visible_faces.end(), 0);
+  for (bsp_leaf &l : _leaves)
+    if (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
+      for (int j = 0; j < l.n_leaffaces; j++)
+        _visible_faces[_leaffaces[l.leafface + j].face] = 1;
 }
 
