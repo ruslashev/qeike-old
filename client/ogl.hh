@@ -6,7 +6,7 @@
 #include <string>
 #include <cstring>
 
-void gl_error_description(GLenum err) {
+inline void gl_error_description(GLenum err) {
   switch (err) {
     case GL_INVALID_ENUM:
       puts("GL_INVALID_ENUM: An unacceptable value is specified for an\n"
@@ -82,6 +82,9 @@ public:
         , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
         , GL_STATIC_DRAW);
   }
+  void upload(int size, const void *data) {
+    glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+  }
 };
 
 class element_array_buffer : public ogl_buffer {
@@ -133,10 +136,12 @@ struct shader {
         die("failed to compile %s shader:\n###\n%s###"
             , type == GL_VERTEX_SHADER ? "vertex" : "fragment"
             , msg.c_str());
+      /*
       else
         printf("### %s shader diagnostic message:\n%s\n### diagnostic message end\n"
             , type == GL_VERTEX_SHADER ? "vertex" : "fragment"
             , msg.c_str());
+            */
     }
   }
   ~shader() {

@@ -4,6 +4,7 @@
 // #include <vector>
 #include <glm/glm.hpp>
 #include <vector>
+#include "ogl.hh"
 
 #if 0
 class bitset {
@@ -147,6 +148,7 @@ class bsp {
   std::vector<bsp_lightmap> _lightmaps;
   std::vector<unsigned int> _lightmap_texture_ids;
   bsp_visdata _visdata;
+  array_buffer vbo;
 public:
   bsp(const char *filename);
   int find_leaf(glm::vec3 position);

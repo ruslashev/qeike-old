@@ -196,6 +196,7 @@ static void draw(double alpha) {
       , glm::value_ptr(glm::perspective(glm::radians(fov), screen_aspect_ratio, 0.1f, 100.0f)));
 
   glUniform3f(view_pos_unif, cam->pos_x(), cam->pos_y(), cam->pos_z());
+
   glUniform3f(light_pos_unif, light_pos.x, light_pos.y, light_pos.z);
 
   draw_cube(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(1, 0, 1));

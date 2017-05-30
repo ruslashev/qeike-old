@@ -289,6 +289,7 @@ bsp::bsp(const char *filename) {
         , header.version);
   }
 
+  // TODO use std::swap
   load_lump(ifs, &header, lump::planes, _planes);
   for (bsp_plane &p : _planes) {
     float temp = p.normal.y;
@@ -401,8 +402,10 @@ bsp::bsp(const char *filename) {
   delete [] read_faces;
 #endif
 
-  puts("ok");
   ifs.close();
+
+  vbo.bind();
+  vbo.upload(sizeof(_vertices[0]) * _vertices.size(), _vertices.data());
 }
 
 int bsp::find_leaf(glm::vec3 position) {
