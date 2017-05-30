@@ -130,7 +130,7 @@ static void graphics_load(screen *s) {
 
 static void load(screen *s) {
   graphics_load(s);
-  b = new bsp("mapz/campgrounds.bsp");
+  b = new bsp("mapz/test1.bsp");
 }
 
 static void key_event(char key, bool down) {

@@ -3,9 +3,9 @@
 // #include "ogl.hh"
 // #include <vector>
 #include <glm/glm.hpp>
+#include <vector>
 
-const float feps = 1e-4f;
-
+#if 0
 class bitset {
   int num_bytes;
   unsigned char *bits;
@@ -20,7 +20,25 @@ public:
   unsigned char is_set(int bit);
 };
 
+struct bsp_biquadratic_patch {
+  bsp_vertex control_points[9];
+  int subdivisions;
+  bsp_vertex *vertices;
+  unsigned int *indices;
+  int *triangles_per_row;
+  unsigned int **row_index_pointers;
+
+  bsp_biquadratic_patch();
+  ~bsp_biquadratic_patch();
+  void tesselate(int subdivisions);
+  void draw();
+};
+#endif
+
 struct bsp_plane {
+  glm::vec3 normal;
+  float intercept;
+
   bsp_plane();
   bsp_plane(glm::vec3 newNormal, float n_intercept);
   bsp_plane(const bsp_plane &rhs);
@@ -38,8 +56,29 @@ struct bsp_plane {
   bool operator!=(const bsp_plane &rhs) const;
   bsp_plane operator-() const;
   bsp_plane operator+() const;
-  glm::vec3 normal;
-  float intercept;
+};
+
+struct bsp_node {
+  int plane;
+  int front;
+  int back;
+  int mins[3];
+  int maxs[3];
+};
+
+struct bsp_leaf {
+  int cluster;
+  int area;
+  int mins[3];
+  int maxs[3];
+  int leafface;
+  int n_leaffaces;
+  int leafbrush;
+  int n_leafbrushes;
+};
+
+struct bsp_leafface {
+  int face;
 };
 
 struct bsp_vertex {
@@ -55,123 +94,58 @@ struct bsp_vertex {
   float normal_z;
   unsigned char color[4];
 
-  bsp_vertex operator+(const bsp_vertex &v) const {
-    bsp_vertex res;
-    res.position_x = position_x + v.position_x;
-    res.position_y = position_y + v.position_y;
-    res.position_z = position_z + v.position_z;
-    res.decal_s = decal_s + v.decal_s;
-    res.decal_t = decal_t + v.decal_t;
-    res.lightmap_s = lightmap_s + v.lightmap_s;
-    res.lightmap_t = lightmap_t + v.lightmap_t;
-    res.normal_x = normal_x + v.normal_x;
-    res.normal_y = normal_y + v.normal_y;
-    res.normal_z = normal_z + v.normal_z;
-    return res;
-  }
-
-  bsp_vertex operator*(float factor) const {
-    bsp_vertex res;
-    res.position_x = position_x * factor;
-    res.position_y = position_y * factor;
-    res.position_z = position_z * factor;
-    res.decal_s = decal_s * factor;
-    res.decal_t = decal_t * factor;
-    res.lightmap_s = lightmap_s * factor;
-    res.lightmap_t = lightmap_t * factor;
-    res.normal_x = normal_x * factor;
-    res.normal_y = normal_y * factor;
-    res.normal_z = normal_z * factor;
-    return res;
-  }
+  bsp_vertex operator+(const bsp_vertex &v) const;
+  bsp_vertex operator*(float factor) const;
 };
 
 struct bsp_face {
-  int first_vertex_idx;
-  int num_vertices;
-  int texture_idx;
-  int lightmap_idx;
+  int texture;
+  int effect;
+  int type;
+  int vertex;
+  int n_vertices;
+  int meshvert;
+  int n_meshverts;
+  int lm_index;
+  int lm_start[2];
+  int lm_size[2];
+  float lm_origin_x;
+  float lm_origin_y;
+  float lm_origin_z;
+  float lm_s_x;
+  float lm_s_y;
+  float lm_s_z;
+  float lm_t_x;
+  float lm_t_y;
+  float lm_t_z;
+  float normal_x;
+  float normal_y;
+  float normal_z;
+  int size[2];
 };
 
-struct bsp_mesh_face {
-  int first_vertex_idx;
-  int num_vertices;
-  int texture_idx;
-  int lightmap_idx;
-  int first_mesh_idx;
-  int num_mesh_indices;
-};
-
-struct bsp_biquadratic_patch {
-  bsp_vertex control_points[9];
-  int subdivisions;
-  bsp_vertex *vertices;
-  unsigned int *indices;
-  int *triangles_per_row;
-  unsigned int **row_index_pointers;
-
-  bsp_biquadratic_patch() : vertices(nullptr), indices(nullptr) {
-  }
-  ~bsp_biquadratic_patch() {
-    if (vertices)
-      delete [] vertices;
-    if (indices)
-      delete [] indices;
-  }
-  void tesselate(int subdivisions);
-  void draw();
-};
-
-struct bsp_patch {
-  int texture_idx;
-  int lightmap_idx;
-  int width, height;
-  int num_quadratic_patches;
-  bsp_biquadratic_patch *quadratic_patches;
-};
-
-struct bsp_leaf {
-  int cluster;
-  float bounding_box_vertices_x[8];
-  float bounding_box_vertices_y[8];
-  float bounding_box_vertices_z[8];
-  int first_leaf_face;
-  int num_faces;
-};
-
-struct bsp_leafface {
-  int face;
-};
-
-struct bsp_node {
-  int plane;
-  int front;
-  int back;
-  int mins[3];
-  int maxs[3];
+struct bsp_lightmap {
+  char map[128][128][3];
 };
 
 struct bsp_visdata {
-  int n_clusters;
-  int bytes_per_cluster;
-  unsigned char *bitset;
-  ~bsp_visdata();
+  int n_vecs;
+  int sz_vecs;
+  std::vector<unsigned char> vecs;
 };
 
 class bsp {
-  bitset _faces_to_draw;
-  int _num_polygon_faces, _num_mesh_faces, _num_patches, _num_leaves
-    , _num_planes, _num_nodes;
-  bsp_face *_faces;
-  bsp_mesh_face *_mesh_faces;
-  bsp_patch *_patches;
-  bsp_leaf *_leaves;
-  bsp_leafface *_leaffaces;
-  bsp_plane *_planes;
-  bsp_node *_nodes;
-  bsp_visdata *_visdata;
+  std::vector<bsp_plane> _planes;
+  std::vector<bsp_node> _nodes;
+  std::vector<bsp_leaf> _leaves;
+  std::vector<bsp_leafface> _leaffaces;
+  std::vector<bsp_vertex> _vertices;
+  std::vector<bsp_face> _faces;
+  std::vector<int> _visible_faces;
+  std::vector<bsp_lightmap> _lightmaps;
+  std::vector<unsigned int> _lightmap_texture_ids;
+  bsp_visdata _visdata;
 public:
   bsp(const char *filename);
-  ~bsp();
 };
 
