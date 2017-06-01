@@ -46,28 +46,31 @@ const char *light_frag = _glsl(
 );
 
 const char *map_vert = _glsl(
+  in vec3 Position;
+  in vec2 TextureCoord;
+  in vec2 LightmapCoord;
   uniform mat4 model;
   uniform mat4 view;
   uniform mat4 projection;
-  attribute vec3 vertex_pos;
-  attribute vec2 texture_coord;
-  attribute vec2 lightmap_coord;
-  varying vec2 texture_coord_f;
-  varying vec2 lightmap_coord_f;
-  void main() {
-    gl_Position = projection * view * model * vec4(vertex_pos, 1.0);
-    texture_coord_f = texture_coord;
-    lightmap_coord_f = lightmap_coord;
+  out vec2 TexCoord0;
+  out vec2 TexCoord1;
+  void main()
+  {
+    gl_Position = projection * view * model * vec4(Position, 1.0);
+    TexCoord0 = TextureCoord;
+    TexCoord1 = LightmapCoord;
   }
 );
 
 const char *map_frag = _glsl(
-  varying vec2 texture_coord_f;
-  varying vec2 lightmap_coord_f;
-  uniform sampler2D texture_sampler;
-  uniform sampler2D lightmap_sampler;
-  void main() {
-    gl_FragColor = texture2D(lightmap_sampler, lightmap_coord_f);
+  in vec2 TexCoord0;
+  in vec2 TexCoord1;
+  out vec4 FragColor;
+  uniform sampler2D textureSampler;
+  uniform sampler2D lightmapSampler;
+  void main()
+  {
+    FragColor = texture(lightmapSampler, TexCoord1);//lightmap
   }
 );
 

@@ -7,22 +7,26 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+static float fov = 45, screen_aspect_ratio;
 static shaderprogram *sp;
+static shader *vs, *fs;
 static GLint vertex_pos_attr, texture_coord_attr, lightmap_coord_attr /*, vertex_normal_attr */;
 // static array_buffer *cube_vbuf;
 static GLint /* resolution_unif, time_unif, */ model_mat_unif, view_mat_unif
     , projection_mat_unif /* , object_color_unif, view_pos_unif, light_pos_unif */
     , texture_sampler_unif, lightmap_sampler_unif;
-static shader *vs, *fs;
 static vertexarray *vao;
-static camera *cam;
-static float fov = 45, screen_aspect_ratio;
 static int move, strafe;
-// static glm::vec3 light_pos = glm::vec3(0, 1.5, 0);
+static camera *cam;
 static bsp *b;
 
 static void graphics_load(screen *s) {
   s->lock_mouse();
+
+  screen_aspect_ratio = static_cast<float>(s->window_width)
+      / static_cast<float>(s->window_height);
+
+  cam = new camera(0, 5, 0);
 
   glEnable(GL_DEPTH_TEST);
 
@@ -31,72 +35,17 @@ static void graphics_load(screen *s) {
   vs = new shader(shaders::map_vert, GL_VERTEX_SHADER);
   fs = new shader(shaders::map_frag, GL_FRAGMENT_SHADER);
   sp = new shaderprogram(*vs, *fs);
+  sp->use_this_prog();
 
-  vertex_pos_attr = sp->bind_attrib("vertex_pos");
-  texture_coord_attr = sp->bind_attrib("texture_coord");
-  lightmap_coord_attr = sp->bind_attrib("lightmap_coord");
-  // vertex_normal_attr = sp->bind_attrib("vertex_normal");
-  // resolution_unif = sp->bind_uniform("iResolution");
-  // time_unif = sp->bind_uniform("iGlobalTime");
+  vertex_pos_attr = sp->bind_attrib("Position");
+  texture_coord_attr = sp->bind_attrib("TextureCoord");
+  lightmap_coord_attr = sp->bind_attrib("LightmapCoord");
   model_mat_unif = sp->bind_uniform("model");
   view_mat_unif = sp->bind_uniform("view");
   projection_mat_unif = sp->bind_uniform("projection");
-  texture_sampler_unif = sp->bind_uniform("texture_sampler");
-  lightmap_sampler_unif = sp->bind_uniform("lightmap_sampler");
-  // object_color_unif = sp->bind_uniform("object_color");
-  // view_pos_unif = sp->bind_uniform("view_pos");
-  // light_pos_unif = sp->bind_uniform("light_pos");
 
-  vao = new vertexarray;
-  vao->bind();
-  // cube_vbuf = new array_buffer;
-  // vao->bind();
-  // cube_vbuf->bind();
-#if 0
-  const std::vector<float> cube_verts = {
-    -.5f, -.5f, -.5f,  0,  0, -1,  .5f, -.5f, -.5f,  0,  0, -1,
-     .5f,  .5f, -.5f,  0,  0, -1,  .5f,  .5f, -.5f,  0,  0, -1,
-    -.5f,  .5f, -.5f,  0,  0, -1, -.5f, -.5f, -.5f,  0,  0, -1,
-    -.5f, -.5f,  .5f,  0,  0,  1,  .5f, -.5f,  .5f,  0,  0,  1,
-     .5f,  .5f,  .5f,  0,  0,  1,  .5f,  .5f,  .5f,  0,  0,  1,
-    -.5f,  .5f,  .5f,  0,  0,  1, -.5f, -.5f,  .5f,  0,  0,  1,
-    -.5f,  .5f,  .5f, -1,  0,  0, -.5f,  .5f, -.5f, -1,  0,  0,
-    -.5f, -.5f, -.5f, -1,  0,  0, -.5f, -.5f, -.5f, -1,  0,  0,
-    -.5f, -.5f,  .5f, -1,  0,  0, -.5f,  .5f,  .5f, -1,  0,  0,
-     .5f,  .5f,  .5f,  1,  0,  0,  .5f,  .5f, -.5f,  1,  0,  0,
-     .5f, -.5f, -.5f,  1,  0,  0,  .5f, -.5f, -.5f,  1,  0,  0,
-     .5f, -.5f,  .5f,  1,  0,  0,  .5f,  .5f,  .5f,  1,  0,  0,
-    -.5f, -.5f, -.5f,  0, -1,  0,  .5f, -.5f, -.5f,  0, -1,  0,
-     .5f, -.5f,  .5f,  0, -1,  0,  .5f, -.5f,  .5f,  0, -1,  0,
-    -.5f, -.5f,  .5f,  0, -1,  0, -.5f, -.5f, -.5f,  0, -1,  0,
-    -.5f,  .5f, -.5f,  0,  1,  0,  .5f,  .5f, -.5f,  0,  1,  0,
-     .5f,  .5f,  .5f,  0,  1,  0,  .5f,  .5f,  .5f,  0,  1,  0,
-    -.5f,  .5f,  .5f,  0,  1,  0, -.5f,  .5f, -.5f,  0,  1,  0
-  };
-  cube_vbuf->upload(cube_verts);
-  glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
-  glEnableVertexAttribArray(vertex_pos_attr);
-  glVertexAttribPointer(vertex_normal_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (GLvoid*)(3 * sizeof(float)));
-  glEnableVertexAttribArray(vertex_normal_attr);
-  vao->unbind();
-  glDisableVertexAttribArray(vertex_pos_attr);
-  glDisableVertexAttribArray(vertex_normal_attr);
-  cube_vbuf->unbind();
-
-  sp->use_this_prog();
-  glUniform2f(resolution_unif, static_cast<float>(s->window_width)
-      , static_cast<float>(s->window_height));
-  sp->dont_use_this_prog();
-#endif
-
-  screen_aspect_ratio = static_cast<float>(s->window_width)
-      / static_cast<float>(s->window_height);
-
-  cam = new camera(0, 0, 0);
-
-  sp->use_this_prog();
-  glUniform1i(texture_sampler_unif, /*GLTEXTURE*/0);
-  glUniform1i(lightmap_sampler_unif, /*GLTEXTURE*/1);
+  glUniform1i(glGetUniformLocation(sp->id, "textureSampler"), /*GLTEXTURE*/0);
+  glUniform1i(glGetUniformLocation(sp->id, "lightmapSampler"), /*GLTEXTURE*/1);
 
   b = new bsp("mapz/test1.bsp");
 }
@@ -165,15 +114,15 @@ static void draw(double alpha) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   sp->use_this_prog();
+
   glUniformMatrix4fv(view_mat_unif, 1, GL_FALSE
       , glm::value_ptr(cam->compute_view_mat()));
 
   glUniformMatrix4fv(projection_mat_unif, 1, GL_FALSE
-      , glm::value_ptr(glm::perspective(glm::radians(fov), screen_aspect_ratio, 0.1f, 100.0f)));
+      , glm::value_ptr(glm::perspective(glm::radians(fov), screen_aspect_ratio
+          , 0.1f, 1000.f)));
 
-  // glUniform3f(view_pos_unif, cam->pos_x(), cam->pos_y(), cam->pos_z());
-  glm::mat4 model = glm::mat4();
-  glUniformMatrix4fv(model_mat_unif, 1, GL_FALSE, glm::value_ptr(model));
+  glUniformMatrix4fv(model_mat_unif, 1, GL_FALSE, glm::value_ptr(glm::mat4()));
 
   glEnableVertexAttribArray(vertex_pos_attr);
   glEnableVertexAttribArray(texture_coord_attr);
@@ -182,22 +131,21 @@ static void draw(double alpha) {
 
   b->set_visible_faces(cam->pos());
 
-  const void* vertex_position = (void*)(long)offsetof(bsp_vertex, position);
-  const void* vertex_texcoord = (void*)(long)offsetof(bsp_vertex, decal);
-  const void* vertex_lightmap_coord = (void*)(long)offsetof(bsp_vertex, lightmap);
-
-  glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), vertex_position);
-  glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), vertex_texcoord);
-  glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), vertex_lightmap_coord);
-
-  for (size_t i = 0; i < b->faces.size(); i++) {
+  for (int i = 0; i < b->faces.size(); i++) {
     if (!b->visible_faces[i] || (b->faces[i].type != 1 && b->faces[i].type != 3))
       continue;
+    glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
+        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].position);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, b->texture_ids[b->faces[i].texture]);
+    glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE
+        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].decal);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, b->lightmap_texture_ids[b->faces[i].lm_index]);
-    glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT, (void*)(long)(b->faces[i].meshvert * sizeof(unsigned int)));
+    glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
+        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].lightmap);
+    glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT
+        , &b->meshverts[b->faces[i].meshvert].offset);
   }
 
   glDisableVertexAttribArray(vertex_pos_attr);

@@ -6,35 +6,7 @@
 #include <vector>
 #include "ogl.hh"
 
-struct vec2f {
-  float x, y;
-};
-
-struct vec3f {
-  float x, y, z;
-  vec3f();
-  vec3f(float n_x, float n_y, float n_z);
-};
-
-struct vec3i {
-  int x, y, z;
-};
-
 #if 0
-class bitset {
-  int num_bytes;
-  unsigned char *bits;
-public:
-  bitset();
-  ~bitset();
-  void init(int number_of_bits);
-  void clear_all();
-  void set_all();
-  void clear(int bit);
-  void set(int bit);
-  unsigned char is_set(int bit);
-};
-
 struct bsp_biquadratic_patch {
   bsp_vertex control_points[9];
   int subdivisions;
@@ -50,8 +22,9 @@ struct bsp_biquadratic_patch {
 };
 #endif
 
+
 struct bsp_plane {
-  vec3f normal;
+  glm::vec3 normal;
   float dist;
 
   bsp_plane();
@@ -105,10 +78,10 @@ struct bsp_leafface {
 };
 
 struct bsp_vertex {
-  vec3f position;
-  vec2f decal;
-  vec2f lightmap;
-  vec3f normal;
+  glm::vec3 position;
+  glm::vec2 decal;
+  glm::vec2 lightmap;
+  glm::vec3 normal;
   unsigned char color[4];
 #if 0
   bsp_vertex operator+(const bsp_vertex &v) const;
@@ -131,10 +104,10 @@ struct bsp_face {
   int lm_index;
   int lm_start[2];
   int lm_size[2];
-  vec3f lm_origin;
-  vec3f lm_s;
-  vec3f lm_t;
-  vec3f normal;
+  glm::vec3 lm_origin;
+  glm::vec3 lm_s;
+  glm::vec3 lm_t;
+  glm::vec3 normal;
   int size[2];
 };
 
@@ -170,6 +143,5 @@ public:
   std::vector<int> visible_faces;
   std::vector<unsigned int> lightmap_texture_ids;
   array_buffer vbo;
-  element_array_buffer ebo;
 };
 

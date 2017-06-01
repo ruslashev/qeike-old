@@ -3,55 +3,10 @@
 #include <cstring> // memset
 #include <fstream>
 
-vec3f::vec3f() : vec3f(0, 0, 0) {
-}
-vec3f::vec3f(float n_x, float n_y, float n_z)
-  : x(n_x)
-  , y(n_y)
-  , z(n_z) {
-}
-
 const float feps = 1e-4f;
-const float scale = 64.f;
+const float scale = 16.f;
 
 #if 0
-bitset::bitset() : num_bytes(0), bits(nullptr) {
-}
-
-bitset::~bitset() {
-  if (bits)
-    delete [] bits;
-}
-
-void bitset::init(int number_of_bits) {
-  if (bits)
-    delete [] bits;
-  bits = nullptr;
-  num_bytes = (number_of_bits >> 3) + 1;
-  bits = new unsigned char [num_bytes];
-  clear_all();
-}
-
-void bitset::clear_all() {
-  memset(bits, 0, num_bytes);
-}
-
-void bitset::set_all() {
-  memset(bits, 0xFF, num_bytes);
-}
-
-void bitset::clear(int bit) {
-  bits[bit >> 3] &= ~(1 << (bit & 7));
-}
-
-void bitset::set(int bit) {
-  bits[bit >> 3] |= 1 << (bit & 7);
-}
-
-unsigned char bitset::is_set(int bit) {
-  return bits[bit >> 3] & 1 << (bit & 7);
-}
-
 bsp_biquadratic_patch::bsp_biquadratic_patch()
   : vertices(nullptr)
   , indices(nullptr) {
@@ -113,7 +68,7 @@ void bsp_biquadratic_patch::tesselate(int n_subdivisions) {
 #endif
 
 bsp_plane::bsp_plane()
-  : normal(0, 0, 0)
+  : normal({0.f, 0.f, 0.f})
   , dist(0.0f) {
 }
 
@@ -348,9 +303,7 @@ bsp::bsp(const char *filename) {
 
   load_lump(ifs, &header, lump::vertices, vertices);
   for (bsp_vertex &v : vertices) {
-    v.position.x /= scale;
-    v.position.y /= scale;
-    v.position.z /= scale;
+    v.position /= scale;
     float temp = v.position.y;
     v.position.y = v.position.z;
     v.position.z = -temp;
@@ -417,21 +370,22 @@ bsp::bsp(const char *filename) {
   ifs.close();
 
   vbo.bind();
-  vbo.upload(sizeof(vertices[0]) * vertices.size(), vertices.data());
-  ebo.bind();
-  ebo.upload(sizeof(meshverts[0]) * meshverts.size(), meshverts.data());
+  vbo.upload(sizeof(vertices[0]) * vertices.size(), &vertices[0]);
 
   glActiveTexture(GL_TEXTURE0);
-  for (size_t i = 0; i < _textures.size(); ++i)
+  for (int i = 0; i < _textures.size(); i++)
     texture_ids[i] = 0;
 
   glActiveTexture(GL_TEXTURE1);
-  glGenTextures(_lightmaps.size(), lightmap_texture_ids.data());
-  for (size_t i = 0; i < _lightmaps.size(); i++) {
+  glGenTextures(_lightmaps.size(), &lightmap_texture_ids[0]);
+
+  for (int i = 0; i < _lightmaps.size(); i++) {
     glBindTexture(GL_TEXTURE_2D, lightmap_texture_ids[i]);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGB
-        , GL_UNSIGNED_BYTE, _lightmaps[i].map);
-    glGenerateMipmap(GL_TEXTURE_2D);
+
+    /*Create lightmap texture*/
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGB, GL_UNSIGNED_BYTE, _lightmaps[i].map);
+    glGenerateMipmap(GL_TEXTURE_2D); /*won't work without this!*/
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -470,7 +424,7 @@ void bsp::set_visible_faces(glm::vec3 camera_pos) {
   int leaf_index = find_leaf(camera_pos);
   std::fill(visible_faces.begin(), visible_faces.end(), 0);
   for (bsp_leaf &l : _leaves)
-    if (1) // (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
+    if (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
       for (int j = 0; j < l.n_leaffaces; j++)
         visible_faces[_leaffaces[l.leafface + j].face] = 1;
 }

@@ -43,7 +43,7 @@
   puts(""); \
 } while (0)
 
-#define _glsl(X) "#version 120\n" #X
+#define _glsl(X) "#version 130\n" #X
 
 inline float to_radians(const float &degrees) {
   return (3.14159265359f * degrees) / 180.f;
