@@ -2,21 +2,22 @@
 #include "camera.hh"
 #include "ogl.hh"
 #include "screen.hh"
+#include "shaders.hh"
 #include "utils.hh"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 static shaderprogram *sp;
-static GLuint vertex_pos_attr, vertex_normal_attr;
-static array_buffer *cube_vbuf;
-static GLint resolution_unif, time_unif, model_mat_unif, view_mat_unif
-    , projection_mat_unif, object_color_unif, view_pos_unif, light_pos_unif;
+static GLuint vertex_pos_attr /*, vertex_normal_attr */;
+// static array_buffer *cube_vbuf;
+static GLint /* resolution_unif, time_unif, */ model_mat_unif, view_mat_unif
+    , projection_mat_unif /* , object_color_unif, view_pos_unif, light_pos_unif */;
 static shader *vs, *fs;
 static vertexarray *vao;
 static camera *cam;
 static float fov = 45, screen_aspect_ratio;
 static int move, strafe;
-static glm::vec3 light_pos = glm::vec3(0, 1.5, 0);
+// static glm::vec3 light_pos = glm::vec3(0, 1.5, 0);
 static bsp *b;
 
 static void graphics_load(screen *s) {
@@ -24,69 +25,29 @@ static void graphics_load(screen *s) {
 
   glEnable(GL_DEPTH_TEST);
 
-  glClearColor(0.055f, 0.055f, 0.055f, 1);
+  glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  const char *vsrc = _glsl(
-    attribute vec3 vertex_pos;
-    attribute vec3 vertex_normal;
-    uniform mat4 model;
-    uniform mat4 view;
-    uniform mat4 projection;
-    varying vec3 frag_normal;
-    varying vec3 frag_pos;
-    void main() {
-      frag_pos = vec3(model * vec4(vertex_pos, 1.0f));
-      frag_normal = normalize(mat3(transpose(inverse(model))) * vertex_normal);
-      gl_Position = projection * view * model * vec4(vertex_pos, 1.0);
-    }
-  );
-  const char *fsrc = _glsl(
-    uniform vec2 iResolution;
-    uniform float iGlobalTime;
-    uniform vec3 light_pos;
-    uniform vec3 view_pos;
-    uniform vec3 object_color;
-    varying vec3 frag_normal;
-    varying vec3 frag_pos;
-    void main() {
-      vec3 light_color = vec3(1, 1, 1);
-      float ambient_strength = 0.1f;
-      vec3 ambient = ambient_strength * light_color;
-
-      vec3 light_dir = normalize(light_pos - frag_pos);
-      float diff = max(dot(frag_normal, light_dir), 0.0);
-      vec3 diffuse = diff * light_color;
-
-      float specular_strength = 0.5f;
-      vec3 view_dir = normalize(view_pos - frag_pos);
-      vec3 reflect_dir = reflect(-light_dir, frag_normal);
-      float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
-      vec3 specular = specular_strength * spec * light_color;
-
-      vec3 result = (ambient + diffuse + specular) * object_color;
-      gl_FragColor = vec4(result, 1.0);
-    }
-  );
-
-  vs = new shader(vsrc, GL_VERTEX_SHADER);
-  fs = new shader(fsrc, GL_FRAGMENT_SHADER);
+  vs = new shader(shaders::map_vert, GL_VERTEX_SHADER);
+  fs = new shader(shaders::map_frag, GL_FRAGMENT_SHADER);
   sp = new shaderprogram(*vs, *fs);
 
   vertex_pos_attr = sp->bind_attrib("vertex_pos");
-  vertex_normal_attr = sp->bind_attrib("vertex_normal");
-  resolution_unif = sp->bind_uniform("iResolution");
-  time_unif = sp->bind_uniform("iGlobalTime");
+  // vertex_normal_attr = sp->bind_attrib("vertex_normal");
+  // resolution_unif = sp->bind_uniform("iResolution");
+  // time_unif = sp->bind_uniform("iGlobalTime");
   model_mat_unif = sp->bind_uniform("model");
   view_mat_unif = sp->bind_uniform("view");
   projection_mat_unif = sp->bind_uniform("projection");
-  object_color_unif = sp->bind_uniform("object_color");
-  view_pos_unif = sp->bind_uniform("view_pos");
-  light_pos_unif = sp->bind_uniform("light_pos");
+  // object_color_unif = sp->bind_uniform("object_color");
+  // view_pos_unif = sp->bind_uniform("view_pos");
+  // light_pos_unif = sp->bind_uniform("light_pos");
 
   vao = new vertexarray;
-  cube_vbuf = new array_buffer;
   vao->bind();
-  cube_vbuf->bind();
+  // cube_vbuf = new array_buffer;
+  // vao->bind();
+  // cube_vbuf->bind();
+#if 0
   const std::vector<float> cube_verts = {
     -.5f, -.5f, -.5f,  0,  0, -1,  .5f, -.5f, -.5f,  0,  0, -1,
      .5f,  .5f, -.5f,  0,  0, -1,  .5f,  .5f, -.5f,  0,  0, -1,
@@ -121,6 +82,7 @@ static void graphics_load(screen *s) {
   glUniform2f(resolution_unif, static_cast<float>(s->window_width)
       , static_cast<float>(s->window_height));
   sp->dont_use_this_prog();
+#endif
 
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
@@ -164,14 +126,17 @@ static void mouse_button_event(int button, bool down) {
 }
 
 static void update(double dt, double t, screen *s) {
+#if 0
   sp->use_this_prog();
   glUniform1f(time_unif, static_cast<GLfloat>(t));
   sp->dont_use_this_prog();
+#endif
   cam->update_position(dt, move, strafe);
-  light_pos.x = cos(t) * 2;
-  light_pos.z = sin(t) * 2;
+  // light_pos.x = cos(t) * 2;
+  // light_pos.z = sin(t) * 2;
 }
 
+#if 0
 static void draw_cube(glm::vec3 pos, glm::vec3 size, glm::vec3 color) {
   glm::vec3 pivot(0, 0, 0);
   glm::mat4 model = glm::translate(glm::mat4(), pos);
@@ -179,11 +144,12 @@ static void draw_cube(glm::vec3 pos, glm::vec3 size, glm::vec3 color) {
   model = glm::translate(model, -pivot);
 
   glUniformMatrix4fv(model_mat_unif, 1, GL_FALSE, glm::value_ptr(model));
-  glUniform3f(object_color_unif, color.x, color.y, color.z);
+  // glUniform3f(object_color_unif, color.x, color.y, color.z);
   vao->bind();
   glDrawArrays(GL_TRIANGLES, 0, 36);
   vao->unbind();
 }
+#endif
 
 static void draw(double alpha) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -195,13 +161,36 @@ static void draw(double alpha) {
   glUniformMatrix4fv(projection_mat_unif, 1, GL_FALSE
       , glm::value_ptr(glm::perspective(glm::radians(fov), screen_aspect_ratio, 0.1f, 100.0f)));
 
-  glUniform3f(view_pos_unif, cam->pos_x(), cam->pos_y(), cam->pos_z());
+  // glUniform3f(view_pos_unif, cam->pos_x(), cam->pos_y(), cam->pos_z());
+  glm::mat4 model = glm::mat4();
+  glUniformMatrix4fv(model_mat_unif, 1, GL_FALSE, glm::value_ptr(model));
 
-  glUniform3f(light_pos_unif, light_pos.x, light_pos.y, light_pos.z);
+  glEnableVertexAttribArray(vertex_pos_attr);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  draw_cube(glm::vec3(0, 0, 0), glm::vec3(1, 1, 1), glm::vec3(1, 0, 1));
+  b->set_visible_faces(cam->pos());
 
-  draw_cube(light_pos, glm::vec3(0.03), glm::vec3(1));
+  glm::vec3 a;
+  struct {
+    float x, y, z;
+  } c;
+  printf("sizeof(a)=%d, sizeof(c)=%d\n", sizeof(a), sizeof(c));
+
+  int d = 0, s = 0;
+  for (size_t i = 0; i < b->faces.size(); i++) {
+    if (!b->visible_faces[i]) {
+      ++s;
+      continue;
+    }
+    if (b->faces[i].type == 1 || b->faces[i].type == 3) {
+      ++d;
+      glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].position);
+      glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT, &b->meshverts[b->faces[i].meshvert].offset);
+    }
+  }
+  // printf("d=%d, s=%d\n", d, s);
+
+  glDisableVertexAttribArray(vertex_pos_attr);
 
   sp->dont_use_this_prog();
 }
@@ -210,7 +199,7 @@ static void cleanup() {
   delete vs;
   delete fs;
   delete sp;
-  delete cube_vbuf;
+  // delete cube_vbuf;
   delete vao;
   delete cam;
   delete b;

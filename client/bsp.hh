@@ -6,6 +6,20 @@
 #include <vector>
 #include "ogl.hh"
 
+struct vec2f {
+  float x, y;
+};
+
+struct vec3f {
+  float x, y, z;
+  vec3f();
+  vec3f(float n_x, float n_y, float n_z);
+};
+
+struct vec3i {
+  int x, y, z;
+};
+
 #if 0
 class bitset {
   int num_bytes;
@@ -37,7 +51,7 @@ struct bsp_biquadratic_patch {
 #endif
 
 struct bsp_plane {
-  glm::vec3 normal;
+  vec3f normal;
   float dist;
 
   bsp_plane();
@@ -65,7 +79,7 @@ struct bsp_node {
   int plane;
   int front;
   int back;
-  int mins[3];
+  int mins[3]; // TODO
   int maxs[3];
 };
 
@@ -85,20 +99,19 @@ struct bsp_leafface {
 };
 
 struct bsp_vertex {
-  float position_x;
-  float position_y;
-  float position_z;
-  float decal_s;
-  float decal_t;
-  float lightmap_s;
-  float lightmap_t;
-  float normal_x;
-  float normal_y;
-  float normal_z;
+  vec3f position;
+  vec2f decal;
+  vec2f lightmap;
+  vec3f normal;
   unsigned char color[4];
-
+#if 0
   bsp_vertex operator+(const bsp_vertex &v) const;
   bsp_vertex operator*(float factor) const;
+#endif
+};
+
+struct bsp_meshvert {
+  int offset;
 };
 
 struct bsp_face {
@@ -142,17 +155,19 @@ class bsp {
   std::vector<bsp_node> _nodes;
   std::vector<bsp_leaf> _leaves;
   std::vector<bsp_leafface> _leaffaces;
-  std::vector<bsp_vertex> _vertices;
-  std::vector<bsp_face> _faces;
-  std::vector<int> _visible_faces;
   std::vector<bsp_lightmap> _lightmaps;
   std::vector<unsigned int> _lightmap_texture_ids;
   bsp_visdata _visdata;
-  array_buffer vbo;
 public:
   bsp(const char *filename);
   int find_leaf(glm::vec3 position);
   int cluster_visible(int vis_cluster, int test_cluster);
   void set_visible_faces(glm::vec3 camera_pos);
+
+  std::vector<bsp_vertex> vertices;
+  std::vector<bsp_meshvert> meshverts;
+  std::vector<bsp_face> faces;
+  std::vector<int> visible_faces;
+  array_buffer vbo;
 };
 

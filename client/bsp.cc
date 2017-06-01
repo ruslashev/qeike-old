@@ -3,6 +3,14 @@
 #include <cstring> // memset
 #include <fstream>
 
+vec3f::vec3f() : vec3f(0, 0, 0) {
+}
+vec3f::vec3f(float n_x, float n_y, float n_z)
+  : x(n_x)
+  , y(n_y)
+  , z(n_z) {
+}
+
 const float feps = 1e-4f;
 const float scale = 64.f;
 
@@ -105,7 +113,7 @@ void bsp_biquadratic_patch::tesselate(int n_subdivisions) {
 #endif
 
 bsp_plane::bsp_plane()
-  : normal(glm::vec3(0))
+  : normal(0, 0, 0)
   , dist(0.0f) {
 }
 
@@ -193,7 +201,6 @@ bsp_plane bsp_plane::operator-() const {
 bsp_plane bsp_plane::operator+() const {
   return (*this);
 }
-#endif
 
 bsp_vertex bsp_vertex::operator+(const bsp_vertex &v) const {
   bsp_vertex res;
@@ -224,6 +231,7 @@ bsp_vertex bsp_vertex::operator*(float factor) const {
   res.normal_z = normal_z * factor;
   return res;
 }
+#endif
 
 enum class lump {
   entities = 0,
@@ -254,10 +262,6 @@ struct bsp_header {
   char magic[4];
   int version;
   bsp_direntry direntries[17];
-};
-
-struct bsp_meshvert {
-  int offset;
 };
 
 template <typename T>
@@ -339,22 +343,21 @@ bsp::bsp(const char *filename) {
 
   load_lump(ifs, &header, lump::leaffaces, _leaffaces);
 
-  load_lump(ifs, &header, lump::vertices, _vertices);
-  for (bsp_vertex &v : _vertices) {
-    v.position_x /= scale;
-    v.position_y /= scale;
-    v.position_z /= scale;
-    float temp = v.position_y;
-    v.position_y = v.position_z;
-    v.position_z = -temp;
+  load_lump(ifs, &header, lump::vertices, vertices);
+  for (bsp_vertex &v : vertices) {
+    v.position.x /= scale;
+    v.position.y /= scale;
+    v.position.z /= scale;
+    float temp = v.position.y;
+    v.position.y = v.position.z;
+    v.position.z = -temp;
   }
 
-  std::vector<bsp_meshvert> meshverts;
   load_lump(ifs, &header, lump::meshverts, meshverts);
 
-  load_lump(ifs, &header, lump::faces, _faces);
+  load_lump(ifs, &header, lump::faces, faces);
 
-  _visible_faces.resize(_faces.size(), 0);
+  visible_faces.resize(faces.size(), 0);
 
   load_lump(ifs, &header, lump::lightmaps, _lightmaps);
   _lightmap_texture_ids.resize(_lightmaps.size());
@@ -405,7 +408,8 @@ bsp::bsp(const char *filename) {
   ifs.close();
 
   vbo.bind();
-  vbo.upload(sizeof(_vertices[0]) * _vertices.size(), _vertices.data());
+  vbo.upload(sizeof(vertices[0]) * vertices.size(), vertices.data());
+  // vbo.unbind();
 }
 
 int bsp::find_leaf(glm::vec3 position) {
@@ -432,10 +436,10 @@ int bsp::cluster_visible(int vis_cluster, int test_cluster) {
 
 void bsp::set_visible_faces(glm::vec3 camera_pos) {
   int leaf_index = find_leaf(camera_pos);
-  std::fill(_visible_faces.begin(), _visible_faces.end(), 0);
+  std::fill(visible_faces.begin(), visible_faces.end(), 0);
   for (bsp_leaf &l : _leaves)
     if (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
       for (int j = 0; j < l.n_leaffaces; j++)
-        _visible_faces[_leaffaces[l.leafface + j].face] = 1;
+        visible_faces[_leaffaces[l.leafface + j].face] = 1;
 }
 
