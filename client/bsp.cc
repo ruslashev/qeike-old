@@ -293,6 +293,9 @@ bsp::bsp(const char *filename) {
         , header.version);
   }
 
+  load_lump(ifs, &header, lump::textures, _textures);
+  texture_ids.resize(_textures.size());
+
   // TODO use std::swap
   load_lump(ifs, &header, lump::planes, _planes);
   for (bsp_plane &p : _planes) {
@@ -356,11 +359,10 @@ bsp::bsp(const char *filename) {
   load_lump(ifs, &header, lump::meshverts, meshverts);
 
   load_lump(ifs, &header, lump::faces, faces);
-
   visible_faces.resize(faces.size(), 0);
 
   load_lump(ifs, &header, lump::lightmaps, _lightmaps);
-  _lightmap_texture_ids.resize(_lightmaps.size());
+  lightmap_texture_ids.resize(_lightmaps.size());
 
   ifs.seekg(header.direntries[(int)lump::visdata].offset);
   ifs.read((char*)&_visdata.n_vecs, sizeof(int));
@@ -410,6 +412,28 @@ bsp::bsp(const char *filename) {
   vbo.bind();
   vbo.upload(sizeof(vertices[0]) * vertices.size(), vertices.data());
   // vbo.unbind();
+
+  glActiveTexture(GL_TEXTURE0);
+  for (size_t i = 0; i < _textures.size(); ++i)
+    texture_ids[i] = 0;
+
+  glActiveTexture(GL_TEXTURE1);
+  glGenTextures(_lightmaps.size(), lightmap_texture_ids.data());
+  for (size_t i = 0; i < _lightmaps.size(); i++) {
+    glBindTexture(GL_TEXTURE_2D, lightmap_texture_ids[i]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGB
+        , GL_UNSIGNED_BYTE, _lightmaps[i].map);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  }
+}
+
+bsp::~bsp() {
+  glDeleteTextures(_textures.size(), texture_ids.data());
+  glDeleteTextures(_lightmaps.size(), lightmap_texture_ids.data());
 }
 
 int bsp::find_leaf(glm::vec3 position) {

@@ -133,7 +133,7 @@ struct shader {
       GLint compilesucc;
       glGetShaderiv(id, GL_COMPILE_STATUS, &compilesucc);
       if (compilesucc != GL_TRUE)
-        die("failed to compile %s shader:\n###\n%s###"
+        die("failed to compile %s shader:\n%s"
             , type == GL_VERTEX_SHADER ? "vertex" : "fragment"
             , msg.c_str());
       /*

@@ -83,6 +83,12 @@ struct bsp_node {
   int maxs[3];
 };
 
+struct bsp_texture {
+  char name[64];
+  int flags;
+  int contents;
+};
+
 struct bsp_leaf {
   int cluster;
   int area;
@@ -125,18 +131,10 @@ struct bsp_face {
   int lm_index;
   int lm_start[2];
   int lm_size[2];
-  float lm_origin_x;
-  float lm_origin_y;
-  float lm_origin_z;
-  float lm_s_x;
-  float lm_s_y;
-  float lm_s_z;
-  float lm_t_x;
-  float lm_t_y;
-  float lm_t_z;
-  float normal_x;
-  float normal_y;
-  float normal_z;
+  vec3f lm_origin;
+  vec3f lm_s;
+  vec3f lm_t;
+  vec3f normal;
   int size[2];
 };
 
@@ -151,23 +149,26 @@ struct bsp_visdata {
 };
 
 class bsp {
+  std::vector<bsp_texture> _textures;
   std::vector<bsp_plane> _planes;
   std::vector<bsp_node> _nodes;
   std::vector<bsp_leaf> _leaves;
   std::vector<bsp_leafface> _leaffaces;
   std::vector<bsp_lightmap> _lightmaps;
-  std::vector<unsigned int> _lightmap_texture_ids;
   bsp_visdata _visdata;
 public:
   bsp(const char *filename);
+  ~bsp();
   int find_leaf(glm::vec3 position);
   int cluster_visible(int vis_cluster, int test_cluster);
   void set_visible_faces(glm::vec3 camera_pos);
 
+  std::vector<unsigned int> texture_ids;
   std::vector<bsp_vertex> vertices;
   std::vector<bsp_meshvert> meshverts;
   std::vector<bsp_face> faces;
   std::vector<int> visible_faces;
+  std::vector<unsigned int> lightmap_texture_ids;
   array_buffer vbo;
 };
 
