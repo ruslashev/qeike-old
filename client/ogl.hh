@@ -95,6 +95,9 @@ public:
         , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
         , GL_STATIC_DRAW);
   }
+  void upload(int size, const void *data) {
+    glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+  }
 };
 
 static std::string get_ogl_shader_err(GLint loglen
@@ -187,7 +190,7 @@ struct shaderprogram {
         , stride, ptr);
     buffer.unbind();
   }
-  GLuint bind_attrib(const char *name) {
+  GLint bind_attrib(const char *name) {
     GLint prev_active_prog;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prev_active_prog);
     use_this_prog();
@@ -196,7 +199,7 @@ struct shaderprogram {
     if (attr == -1)
       printf("warning: failed to bind attribute %s\n", name);
     glUseProgram(static_cast<GLuint>(prev_active_prog));
-    return static_cast<GLuint>(attr);
+    return attr;
   }
   GLint bind_uniform(const char *name) {
     GLint prev_active_prog;

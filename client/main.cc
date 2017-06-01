@@ -8,7 +8,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 static shaderprogram *sp;
-static GLuint vertex_pos_attr, texture_coord_attr, lightmap_coord_attr /*, vertex_normal_attr */;
+static GLint vertex_pos_attr, texture_coord_attr, lightmap_coord_attr /*, vertex_normal_attr */;
 // static array_buffer *cube_vbuf;
 static GLint /* resolution_unif, time_unif, */ model_mat_unif, view_mat_unif
     , projection_mat_unif /* , object_color_unif, view_pos_unif, light_pos_unif */
@@ -92,7 +92,7 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  cam = new camera(-10, 0, 0);
+  cam = new camera(0, 0, 0);
 
   sp->use_this_prog();
   glUniform1i(texture_sampler_unif, /*GLTEXTURE*/0);
@@ -182,17 +182,22 @@ static void draw(double alpha) {
 
   b->set_visible_faces(cam->pos());
 
+  const void* vertex_position = (void*)(long)offsetof(bsp_vertex, position);
+  const void* vertex_texcoord = (void*)(long)offsetof(bsp_vertex, decal);
+  const void* vertex_lightmap_coord = (void*)(long)offsetof(bsp_vertex, lightmap);
+
+  glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), vertex_position);
+  glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), vertex_texcoord);
+  glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), vertex_lightmap_coord);
+
   for (size_t i = 0; i < b->faces.size(); i++) {
     if (!b->visible_faces[i] || (b->faces[i].type != 1 && b->faces[i].type != 3))
       continue;
-    glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].position);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, b->texture_ids[b->faces[i].texture]);
-    glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].decal);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, b->lightmap_texture_ids[b->faces[i].lm_index]);
-    glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].lightmap);
-    glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT, &b->meshverts[b->faces[i].meshvert].offset);
+    glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT, (void*)(long)(b->faces[i].meshvert * sizeof(unsigned int)));
   }
 
   glDisableVertexAttribArray(vertex_pos_attr);

@@ -1,4 +1,4 @@
 qeike
 *.o
-client/mapz/campgrounds.bsp
+client/mapz/*.bsp
 

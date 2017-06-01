@@ -170,5 +170,6 @@ public:
   std::vector<int> visible_faces;
   std::vector<unsigned int> lightmap_texture_ids;
   array_buffer vbo;
+  element_array_buffer ebo;
 };
 

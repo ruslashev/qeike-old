@@ -357,6 +357,13 @@ bsp::bsp(const char *filename) {
   }
 
   load_lump(ifs, &header, lump::meshverts, meshverts);
+  for (size_t i = 0, vOffset = vertices.size(), iOffset = meshverts.size()
+      ; i < faces.size(); i++)
+    if (faces[i].type == 2)
+      continue;
+    else
+      for (int j = 0; j < faces[i].n_meshverts; j++)
+        meshverts[faces[i].meshvert + j].offset += faces[i].vertex;
 
   load_lump(ifs, &header, lump::faces, faces);
   visible_faces.resize(faces.size(), 0);
@@ -411,7 +418,8 @@ bsp::bsp(const char *filename) {
 
   vbo.bind();
   vbo.upload(sizeof(vertices[0]) * vertices.size(), vertices.data());
-  // vbo.unbind();
+  ebo.bind();
+  ebo.upload(sizeof(meshverts[0]) * meshverts.size(), meshverts.data());
 
   glActiveTexture(GL_TEXTURE0);
   for (size_t i = 0; i < _textures.size(); ++i)
@@ -462,7 +470,7 @@ void bsp::set_visible_faces(glm::vec3 camera_pos) {
   int leaf_index = find_leaf(camera_pos);
   std::fill(visible_faces.begin(), visible_faces.end(), 0);
   for (bsp_leaf &l : _leaves)
-    if (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
+    if (1) // (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
       for (int j = 0; j < l.n_leaffaces; j++)
         visible_faces[_leaffaces[l.leafface + j].face] = 1;
 }

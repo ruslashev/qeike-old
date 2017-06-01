@@ -46,12 +46,12 @@ const char *light_frag = _glsl(
 );
 
 const char *map_vert = _glsl(
-  attribute vec3 vertex_pos;
-  attribute vec2 texture_coord;
-  attribute vec2 lightmap_coord;
   uniform mat4 model;
   uniform mat4 view;
   uniform mat4 projection;
+  attribute vec3 vertex_pos;
+  attribute vec2 texture_coord;
+  attribute vec2 lightmap_coord;
   varying vec2 texture_coord_f;
   varying vec2 lightmap_coord_f;
   void main() {
