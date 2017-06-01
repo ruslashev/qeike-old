@@ -37,15 +37,15 @@ static void graphics_load(screen *s) {
   sp = new shaderprogram(*vs, *fs);
   sp->use_this_prog();
 
-  vertex_pos_attr = sp->bind_attrib("Position");
-  texture_coord_attr = sp->bind_attrib("TextureCoord");
-  lightmap_coord_attr = sp->bind_attrib("LightmapCoord");
+  vertex_pos_attr = sp->bind_attrib("vertex_pos");
+  texture_coord_attr = sp->bind_attrib("texture_coord");
+  lightmap_coord_attr = sp->bind_attrib("lightmap_coord");
   model_mat_unif = sp->bind_uniform("model");
   view_mat_unif = sp->bind_uniform("view");
   projection_mat_unif = sp->bind_uniform("projection");
 
-  glUniform1i(glGetUniformLocation(sp->id, "textureSampler"), /*GLTEXTURE*/0);
-  glUniform1i(glGetUniformLocation(sp->id, "lightmapSampler"), /*GLTEXTURE*/1);
+  glUniform1i(glGetUniformLocation(sp->id, "texture_sampler"), 0);
+  glUniform1i(glGetUniformLocation(sp->id, "lightmap_sampler"), 1);
 
   b = new bsp("mapz/test1.bsp");
 }
