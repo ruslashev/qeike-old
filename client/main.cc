@@ -12,8 +12,8 @@ static shaderprogram *sp;
 static shader *vs, *fs;
 static GLint vertex_pos_attr, texture_coord_attr, lightmap_coord_attr /*, vertex_normal_attr */;
 // static array_buffer *cube_vbuf;
-static GLint /* resolution_unif, time_unif, */ model_mat_unif, view_mat_unif
-    , projection_mat_unif /* , object_color_unif, view_pos_unif, light_pos_unif */
+static GLint /* resolution_unif, time_unif, */ mvp_mat_unif
+    /* , object_color_unif, view_pos_unif, light_pos_unif */
     , texture_sampler_unif, lightmap_sampler_unif;
 static vertexarray *vao;
 static int move, strafe;
@@ -40,9 +40,7 @@ static void graphics_load(screen *s) {
   vertex_pos_attr = sp->bind_attrib("vertex_pos");
   texture_coord_attr = sp->bind_attrib("texture_coord");
   lightmap_coord_attr = sp->bind_attrib("lightmap_coord");
-  model_mat_unif = sp->bind_uniform("model");
-  view_mat_unif = sp->bind_uniform("view");
-  projection_mat_unif = sp->bind_uniform("projection");
+  mvp_mat_unif = sp->bind_uniform("mvp");
 
   glUniform1i(glGetUniformLocation(sp->id, "texture_sampler"), 0);
   glUniform1i(glGetUniformLocation(sp->id, "lightmap_sampler"), 1);
@@ -115,14 +113,11 @@ static void draw(double alpha) {
 
   sp->use_this_prog();
 
-  glUniformMatrix4fv(view_mat_unif, 1, GL_FALSE
-      , glm::value_ptr(cam->compute_view_mat()));
-
-  glUniformMatrix4fv(projection_mat_unif, 1, GL_FALSE
-      , glm::value_ptr(glm::perspective(glm::radians(fov), screen_aspect_ratio
-          , 0.1f, 1000.f)));
-
-  glUniformMatrix4fv(model_mat_unif, 1, GL_FALSE, glm::value_ptr(glm::mat4()));
+  glm::mat4 projection = glm::perspective(glm::radians(fov), screen_aspect_ratio
+          , 0.1f, 1000.f)
+    , view = cam->compute_view_mat(), model = glm::mat4()
+    , mvp = projection * view * model;
+  glUniformMatrix4fv(mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
   glEnableVertexAttribArray(vertex_pos_attr);
   glEnableVertexAttribArray(texture_coord_attr);

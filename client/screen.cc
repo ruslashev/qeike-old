@@ -16,6 +16,9 @@ screen::screen(const std::string &n_title, int n_window_width
 
   _gl_context = SDL_GL_CreateContext(_window);
 
+  if (SDL_GL_SetSwapInterval(0) == -1)
+    warning("failed to set vsync: %s", SDL_GetError());
+
   GLenum err = glewInit();
   assertf(err == GLEW_OK, "failed to initialze glew: %s",
       glewGetErrorString(err));

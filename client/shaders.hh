@@ -49,13 +49,11 @@ const char *map_vert = _glsl(
   attribute vec3 vertex_pos;
   attribute vec2 texture_coord;
   attribute vec2 lightmap_coord;
-  uniform mat4 model;
-  uniform mat4 view;
-  uniform mat4 projection;
+  uniform mat4 mvp;
   varying vec2 texture_coord_f;
   varying vec2 lightmap_coord_f;
   void main() {
-    gl_Position = projection * view * model * vec4(vertex_pos, 1.0);
+    gl_Position = mvp * vec4(vertex_pos, 1.0);
     texture_coord_f = texture_coord;
     lightmap_coord_f = lightmap_coord;
   }
