@@ -254,49 +254,33 @@ bsp::bsp(const char *filename) {
   // TODO use std::swap
   load_lump(ifs, &header, lump::planes, _planes);
   for (bsp_plane &p : _planes) {
-    float temp = p.normal.y;
-    p.normal.y = p.normal.z;
-    p.normal.z = -temp;
+    std::swap(p.normal.y, p.normal.z);
+    p.normal.z = -p.normal.z;
     p.dist /= scale;
   }
 
   load_lump(ifs, &header, lump::nodes, _nodes);
   for (bsp_node &n : _nodes) {
-    for (int i = 0; i < 3; ++i) {
-      n.mins[i] /= scale;
-      n.maxs[i] /= scale;
-    }
-    int temp = n.mins[1];
-    n.mins[1] = n.mins[2];
-    n.mins[2] = -temp;
-    temp = n.maxs[1];
-    n.maxs[1] = n.maxs[2];
-    n.maxs[2] = -temp;
+    n.mins /= scale;
+    std::swap(n.mins.y, n.mins.z);
+    n.mins.z = -n.mins.z;
+    n.maxs /= scale;
+    std::swap(n.maxs.y, n.maxs.z);
+    n.maxs.z = -n.maxs.z;
   }
 
   load_lump(ifs, &header, lump::leaves, _leaves);
   for (bsp_leaf &l : _leaves) {
-    for (int i = 0; i < 3; i++) {
-      l.mins[i] /= scale;
-      l.maxs[i] /= scale;
-    }
-    int temp = l.mins[1];
-    l.mins[1] = l.mins[2];
-    l.mins[2] = -temp;
-    temp = l.maxs[1];
-    l.maxs[1] = l.maxs[2];
-    l.maxs[2] = -temp;
-    if (l.mins[1] > l.maxs[1]) {
-      temp = l.mins[1];
-      l.mins[1] = l.maxs[1];
-      l.maxs[1] = temp;
-    }
-    if (l.mins[2] > l.maxs[2])
-    {
-      temp = l.mins[2];
-      l.mins[2] = l.maxs[2];
-      l.maxs[2] = temp;
-    }
+    l.mins /= scale;
+    std::swap(l.mins.y, l.mins.z);
+    l.mins.z = -l.mins.z;
+    l.maxs /= scale;
+    std::swap(l.maxs.y, l.maxs.z);
+    l.maxs.z = -l.maxs.z;
+    if (l.mins.y > l.maxs.y)
+      std::swap(l.mins.y, l.maxs.y);
+    if (l.mins.z > l.maxs.z)
+      std::swap(l.mins.z, l.maxs.z);
   }
 
   load_lump(ifs, &header, lump::leaffaces, _leaffaces);
@@ -304,14 +288,13 @@ bsp::bsp(const char *filename) {
   load_lump(ifs, &header, lump::vertices, vertices);
   for (bsp_vertex &v : vertices) {
     v.position /= scale;
-    float temp = v.position.y;
-    v.position.y = v.position.z;
-    v.position.z = -temp;
+    std::swap(v.position.y, v.position.z);
+    v.position.z = -v.position.z;
   }
 
   load_lump(ifs, &header, lump::meshverts, meshverts);
-  for (size_t i = 0, vOffset = vertices.size(), iOffset = meshverts.size()
-      ; i < faces.size(); i++)
+  for (size_t i = 0, v_offset = vertices.size(), i_offset = meshverts.size()
+      ; i < faces.size(); ++i)
     if (faces[i].type == 2)
       continue;
     else
@@ -373,19 +356,16 @@ bsp::bsp(const char *filename) {
   vbo.upload(sizeof(vertices[0]) * vertices.size(), &vertices[0]);
 
   glActiveTexture(GL_TEXTURE0);
-  for (int i = 0; i < _textures.size(); i++)
+  for (size_t i = 0; i < _textures.size(); i++)
     texture_ids[i] = 0;
 
   glActiveTexture(GL_TEXTURE1);
   glGenTextures(_lightmaps.size(), &lightmap_texture_ids[0]);
-
-  for (int i = 0; i < _lightmaps.size(); i++) {
+  for (size_t i = 0; i < _lightmaps.size(); i++) {
     glBindTexture(GL_TEXTURE_2D, lightmap_texture_ids[i]);
-
-    /*Create lightmap texture*/
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGB, GL_UNSIGNED_BYTE, _lightmaps[i].map);
-    glGenerateMipmap(GL_TEXTURE_2D); /*won't work without this!*/
-
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGB
+        , GL_UNSIGNED_BYTE, _lightmaps[i].map);
+    glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);

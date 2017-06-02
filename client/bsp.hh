@@ -52,8 +52,8 @@ struct bsp_node {
   int plane;
   int front;
   int back;
-  int mins[3]; // TODO
-  int maxs[3];
+  glm::ivec3 mins;
+  glm::ivec3 maxs;
 };
 
 struct bsp_texture {
@@ -65,8 +65,8 @@ struct bsp_texture {
 struct bsp_leaf {
   int cluster;
   int area;
-  int mins[3];
-  int maxs[3];
+  glm::ivec3 mins;
+  glm::ivec3 maxs;
   int leafface;
   int n_leaffaces;
   int leafbrush;
@@ -102,8 +102,8 @@ struct bsp_face {
   int meshvert;
   int n_meshverts;
   int lm_index;
-  int lm_start[2];
-  int lm_size[2];
+  glm::ivec2 lm_start;
+  glm::ivec2 lm_size;
   glm::vec3 lm_origin;
   glm::vec3 lm_s;
   glm::vec3 lm_t;

@@ -126,7 +126,7 @@ static void draw(double alpha) {
 
   b->set_visible_faces(cam->pos());
 
-  for (int i = 0; i < b->faces.size(); i++) {
+  for (size_t i = 0; i < b->faces.size(); i++) {
     if (!b->visible_faces[i] || (b->faces[i].type != 1 && b->faces[i].type != 3))
       continue;
     glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
