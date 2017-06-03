@@ -5,23 +5,6 @@
 #include <map>
 #include "ogl.hh"
 
-#if 0
-struct bsp_biquadratic_patch {
-  bsp_vertex control_points[9];
-  int subdivisions;
-  bsp_vertex *vertices;
-  unsigned int *indices;
-  int *triangles_per_row;
-  unsigned int **row_index_pointers;
-
-  bsp_biquadratic_patch();
-  ~bsp_biquadratic_patch();
-  void tesselate(int subdivisions);
-  void draw();
-};
-#endif
-
-
 struct bsp_plane {
   glm::vec3 normal;
   float dist;
@@ -133,9 +116,10 @@ class bsp {
   std::vector<bsp_lightmap> _lightmaps;
   std::vector<GLuint> _lightmap_texture_ids;
   bsp_visdata _visdata;
-
   GLint _vertex_pos_attr, _texture_coord_attr, _lightmap_coord_attr
     , _mvp_mat_unif;
+
+  void _load_file(const char *filename);
 public:
   std::vector<GLuint> texture_ids;
   shader_program sp;

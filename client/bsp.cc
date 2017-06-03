@@ -7,67 +7,6 @@
 const float feps = 1e-4f;
 const float scale = 16.f;
 
-#if 0
-bsp_biquadratic_patch::bsp_biquadratic_patch()
-  : vertices(nullptr)
-  , indices(nullptr) {
-}
-
-bsp_biquadratic_patch::~bsp_biquadratic_patch() {
-  if (vertices)
-    delete [] vertices;
-  if (indices)
-    delete [] indices;
-}
-
-void bsp_biquadratic_patch::tesselate(int n_subdivisions) {
-  subdivisions = n_subdivisions;
-  float px, py;
-  bsp_vertex temp[3];
-  vertices = new bsp_vertex [(subdivisions + 1) * (subdivisions + 1)];
-  for (int v = 0; v <= subdivisions; ++v) {
-    px = (float)v / subdivisions;
-    vertices[v] = control_points[0] * ((1.0f - px) * (1.0f - px))
-      + control_points[3] * ((1.0f - px) * px * 2)
-      + control_points[6] * (px * px);
-  }
-  for (int u = 1; u <= subdivisions; ++u) {
-    py = (float)u / subdivisions;
-    temp[0] = control_points[0] * (1.0f - py) * (1.0f - py)
-      + control_points[1] * (1.0f - py) * py * 2
-      + control_points[2] * py * py;
-    temp[1] = control_points[3] * (1.0f - py) * (1.0f - py)
-      + control_points[4] * (1.0f - py) * py * 2
-      + control_points[5] * py * py;
-    temp[2] = control_points[6] * (1.0f - py) * (1.0f - py)
-      + control_points[7] * (1.0f - py) * py * 2
-      + control_points[8] * py * py;
-    for (int v = 0; v <= subdivisions; ++v) {
-      px = (float)v / subdivisions;
-      vertices[u * (subdivisions + 1) + v] = temp[0] * (1.0f - px) * (1.0f - px)
-        + temp[1] * (1.0f - px) * px * 2 + temp[2] * px * px;
-    }
-  }
-  indices = new unsigned int [subdivisions * (subdivisions + 1) * 2];
-  for (int row = 0; row < subdivisions; ++row)
-    for (int point = 0; point <= subdivisions; ++point) {
-      // reverse winding
-      indices[(row * (subdivisions + 1) + point) * 2 + 1]
-        = row * (subdivisions + 1) + point;
-      indices[(row * (subdivisions + 1) + point) * 2]
-        = (row + 1) * (subdivisions + 1) + point;
-    }
-
-  triangles_per_row = new int [subdivisions];
-  row_index_pointers = new unsigned int* [subdivisions];
-
-  for (int row = 0; row < subdivisions; ++row) {
-    triangles_per_row[row] = 2 * (subdivisions + 1);
-    row_index_pointers[row] = &indices[row * 2 * (subdivisions + 1)];
-  }
-}
-#endif
-
 bsp_plane::bsp_plane()
   : normal({0.f, 0.f, 0.f})
   , dist(0.0f) {
@@ -240,8 +179,7 @@ void load_lump(std::ifstream &ifs, const bsp_header *header
   }
 }
 
-bsp::bsp(const char *filename)
-  : sp(shaders::map_vert, shaders::map_frag) {
+void bsp::_load_file(const char *filename) {
   std::ifstream ifs(filename, std::ios::binary);
 
   bsp_header header;
@@ -315,43 +253,12 @@ bsp::bsp(const char *filename)
   _visdata.vecs.reserve(size);
   ifs.read((char*)&_visdata.vecs[0], size * sizeof(unsigned char));
 
-#if 0
-  _patches = new bsp_patch [_num_patches];
-  for (int curr_patch = 0, i = 0; i < num_faces; ++i) {
-    if (read_faces[i].type != patch)
-      continue;
-    _patches[curr_patch].texture_idx = read_faces[i].texture;
-    _patches[curr_patch].lightmap_idx = read_faces[i].lm_index;
-    _patches[curr_patch].width = read_faces[i].size[0];
-    _patches[curr_patch].height = read_faces[i].size[1];
-    face_directory[i].face_type = patch;
-    face_directory[i].face_number = curr_patch;
-
-    int num_patches_width = (_patches[curr_patch].width - 1) / 2
-      , num_patches_height = (_patches[curr_patch].height - 1) / 2;
-
-    _patches[curr_patch].num_quadratic_patches = num_patches_width
-      * num_patches_height;
-    _patches[curr_patch].quadratic_patches =
-      new bsp_biquadratic_patch [_patches[curr_patch].num_quadratic_patches];
-    for (int y = 0; y < num_patches_height; ++y)
-      for (int x = 0; x < num_patches_width; ++x) {
-        for (int row = 0; row < 3; ++row)
-          for (int col = 0; col < 3; ++col)
-            _patches[curr_patch].quadratic_patches[y
-              * num_patches_width+x].control_points[row * 3 + col]
-              = vertices[read_faces[i].vertex
-              + (y * 2 * _patches[curr_patch].width + x * 2)
-              + row * _patches[curr_patch].width + col];
-        _patches[curr_patch].quadratic_patches[y * num_patches_width + x]
-          .tesselate(10);
-      }
-    ++curr_patch;
-  }
-  delete [] read_faces;
-#endif
-
   ifs.close();
+}
+
+bsp::bsp(const char *filename)
+  : sp(shaders::map_vert, shaders::map_frag) {
+  _load_file(filename);
 
   sp.use_this_prog();
   _vertex_pos_attr = sp.bind_attrib("vertex_pos");
