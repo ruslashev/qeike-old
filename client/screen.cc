@@ -34,12 +34,13 @@ screen::~screen() {
   SDL_Quit();
 }
 
-static inline char sdlkey_to_char(const SDL_Keycode &kc) {
+static char sdlkey_to_char(const SDL_Keycode &kc) {
   switch (kc) {
     case SDLK_w: return 'w';
     case SDLK_a: return 'a';
     case SDLK_s: return 's';
     case SDLK_d: return 'd';
+    case SDLK_f: return 'f';
     default:     return -1;
   }
 }

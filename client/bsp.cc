@@ -5,7 +5,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 const float feps = 1e-4f;
-const float scale = 16.f;
 
 bsp_plane::bsp_plane()
   : normal({0.f, 0.f, 0.f})
@@ -179,7 +178,7 @@ void load_lump(std::ifstream &ifs, const bsp_header *header
   }
 }
 
-void bsp::_load_file(const char *filename) {
+void bsp::_load_file(const char *filename, float world_scale) {
   std::ifstream ifs(filename, std::ios::binary);
 
   bsp_header header;
@@ -202,25 +201,25 @@ void bsp::_load_file(const char *filename) {
   for (bsp_plane &p : _planes) {
     std::swap(p.normal.y, p.normal.z);
     p.normal.z = -p.normal.z;
-    p.dist /= scale;
+    p.dist /= world_scale;
   }
 
   load_lump(ifs, &header, lump::nodes, _nodes);
   for (bsp_node &n : _nodes) {
-    n.mins /= scale;
+    n.mins /= world_scale;
     std::swap(n.mins.y, n.mins.z);
     n.mins.z = -n.mins.z;
-    n.maxs /= scale;
+    n.maxs /= world_scale;
     std::swap(n.maxs.y, n.maxs.z);
     n.maxs.z = -n.maxs.z;
   }
 
   load_lump(ifs, &header, lump::leaves, _leaves);
   for (bsp_leaf &l : _leaves) {
-    l.mins /= scale;
+    l.mins /= world_scale;
     std::swap(l.mins.y, l.mins.z);
     l.mins.z = -l.mins.z;
-    l.maxs /= scale;
+    l.maxs /= world_scale;
     std::swap(l.maxs.y, l.maxs.z);
     l.maxs.z = -l.maxs.z;
     if (l.mins.y > l.maxs.y)
@@ -233,7 +232,7 @@ void bsp::_load_file(const char *filename) {
 
   load_lump(ifs, &header, lump::vertices, _vertices);
   for (bsp_vertex &v : _vertices) {
-    v.position /= scale;
+    v.position /= world_scale;
     std::swap(v.position.y, v.position.z);
     v.position.z = -v.position.z;
   }
@@ -250,15 +249,46 @@ void bsp::_load_file(const char *filename) {
   ifs.read((char*)&_visdata.n_vecs, sizeof(int));
   ifs.read((char*)&_visdata.sz_vecs, sizeof(int));
   int size = _visdata.n_vecs * _visdata.sz_vecs;
-  _visdata.vecs.reserve(size);
+  _visdata.vecs.resize(size);
   ifs.read((char*)&_visdata.vecs[0], size * sizeof(unsigned char));
 
   ifs.close();
 }
 
-bsp::bsp(const char *filename)
+int bsp::_find_leaf(glm::vec3 position) {
+  int index = 0;
+  while (index >= 0) {
+    bsp_node *node = &_nodes[index];
+    bsp_plane *plane = &_planes[node->plane];
+    if (plane->normal.x * position.x + plane->normal.y * position.y
+        + plane->normal.z * position.z > plane->dist)
+      index = node->front;
+    else
+      index = node->back;
+  }
+  return -(index + 1); // leaf index
+}
+
+int bsp::_cluster_visible(int vis_cluster, int test_cluster) {
+  if (vis_cluster < 0 || _visdata.vecs.size() == 0)
+    return 1;
+  int i = vis_cluster * _visdata.sz_vecs + (test_cluster >> 3);
+  unsigned char vis_set = _visdata.vecs[i];
+  return vis_set & (1 << (test_cluster & 7));
+}
+
+void bsp::_set_visible_faces(glm::vec3 camera_pos) {
+  int leaf_index = _find_leaf(camera_pos);
+  std::fill(_visible_faces.begin(), _visible_faces.end(), 0);
+  for (bsp_leaf &l : _leaves)
+    if (_cluster_visible(_leaves[leaf_index].cluster, l.cluster))
+      for (int j = 0; j < l.n_leaffaces; j++)
+        _visible_faces[_leaffaces[l.leafface + j].face] = 1;
+}
+
+bsp::bsp(const char *filename, float world_scale)
   : sp(shaders::map_vert, shaders::map_frag) {
-  _load_file(filename);
+  _load_file(filename, world_scale);
 
   sp.use_this_prog();
   _vertex_pos_attr = sp.bind_attrib("vertex_pos");
@@ -295,38 +325,9 @@ bsp::~bsp() {
   glDeleteTextures(_lightmaps.size(), _lightmap_texture_ids.data());
 }
 
-int bsp::find_leaf(glm::vec3 position) {
-  int index = 0;
-  while (index >= 0) {
-    bsp_node *node = &_nodes[index];
-    bsp_plane *plane = &_planes[node->plane];
-    if (plane->normal.x * position.x + plane->normal.y * position.y
-        + plane->normal.z * position.z > plane->dist)
-      index = node->front;
-    else
-      index = node->back;
-  }
-  return -(index + 1); // leaf index
-}
+void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
+  _set_visible_faces(position);
 
-int bsp::cluster_visible(int vis_cluster, int test_cluster) {
-  if (vis_cluster < 0 || _visdata.vecs.size() == 0)
-    return 1;
-  int i = vis_cluster * _visdata.sz_vecs + (test_cluster >> 3);
-  unsigned char vis_set = _visdata.vecs[i];
-  return vis_set & (1 << (test_cluster & 7));
-}
-
-void bsp::set_visible_faces(glm::vec3 camera_pos) {
-  int leaf_index = find_leaf(camera_pos);
-  std::fill(_visible_faces.begin(), _visible_faces.end(), 0);
-  for (bsp_leaf &l : _leaves)
-    if (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
-      for (int j = 0; j < l.n_leaffaces; j++)
-        _visible_faces[_leaffaces[l.leafface + j].face] = 1;
-}
-
-void bsp::render(const glm::mat4 &mvp) {
   sp.use_this_prog();
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -337,9 +338,13 @@ void bsp::render(const glm::mat4 &mvp) {
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   for (size_t i = 0; i < _faces.size(); i++) {
-    if (!_visible_faces[i] || (_faces[i].type != (int)face::polygon
-          && _faces[i].type != (int)face::mesh))
-      continue;
+    if (!_visible_faces[i]) {
+      puts("skip invis");
+          continue;
+    }
+    if (_faces[i].type != (int)face::polygon
+        && _faces[i].type != (int)face::mesh)
+          continue;
     glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
         , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].position);
     glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE

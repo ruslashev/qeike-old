@@ -14,6 +14,7 @@ static float fov = 45, screen_aspect_ratio;
 static int move, strafe;
 static camera *cam;
 static bsp *b;
+static bool wireframe = false;
 
 static void graphics_load(screen *s) {
   s->lock_mouse();
@@ -27,7 +28,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new bsp("mapz/test1.bsp");
+  b = new bsp("mapz/test1.bsp", 32.f);
 }
 
 static void load(screen *s) {
@@ -41,6 +42,7 @@ static void key_event(char key, bool down) {
     case 's': backward = down; break;
     case 'd': right    = down; break;
     case 'a': left     = down; break;
+    case 'f': if (down) wireframe = !wireframe; break;
     default: break;
   }
   if (forward == backward)
@@ -93,14 +95,17 @@ static void draw_cube(glm::vec3 pos, glm::vec3 size, glm::vec3 color) {
 static void draw(double alpha) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  b->set_visible_faces(cam->pos());
+  if (wireframe)
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  else
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
   glm::mat4 projection = glm::perspective(glm::radians(fov), screen_aspect_ratio
           , 0.1f, 1000.f)
     , view = cam->compute_view_mat(), model = glm::mat4()
     , mvp = projection * view * model;
 
-  b->render(mvp);
+  b->render(cam->pos(), mvp);
 }
 
 static void cleanup() {

@@ -119,17 +119,17 @@ class bsp {
   GLint _vertex_pos_attr, _texture_coord_attr, _lightmap_coord_attr
     , _mvp_mat_unif;
 
-  void _load_file(const char *filename);
+  void _load_file(const char *filename, float world_scale);
+  int _find_leaf(glm::vec3 position);
+  int _cluster_visible(int vis_cluster, int test_cluster);
+  void _set_visible_faces(glm::vec3 camera_pos);
 public:
   std::vector<GLuint> texture_ids;
   shader_program sp;
   array_buffer vbo;
 
-  bsp(const char *filename);
+  bsp(const char *filename, float world_scale);
   ~bsp();
-  int find_leaf(glm::vec3 position);
-  int cluster_visible(int vis_cluster, int test_cluster);
-  void set_visible_faces(glm::vec3 camera_pos);
-  void render(const glm::mat4 &mvp);
+  void render(glm::vec3 position, const glm::mat4 &mvp);
 };
 
