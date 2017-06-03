@@ -1,5 +1,6 @@
 #include "screen.hh"
 #include "utils.hh"
+#include <chrono>
 
 screen::screen(const std::string &n_title, int n_window_width
     , int n_window_height)
@@ -103,22 +104,26 @@ void screen::mainloop(void (*load_cb)(screen*)
       accumulator -= dt;
     }
 
+    auto draw_begin = std::chrono::high_resolution_clock::now();
     draw_cb(accumulator / dt);
+    auto draw_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::micro> draw_duration = draw_end - draw_begin;
 
     SDL_GL_SwapWindow(_window);
 
     { // fps counter
       total_frames++;
       draw_count++;
-      if (draw_count == 20) {
+      if (draw_count == 700) {
         draw_count = 0;
         double seconds_per_frame = get_time_in_seconds() - real_time
           , fps = 1. / seconds_per_frame
           , fpsavg = (double)total_frames / get_time_in_seconds()
           , mspf = seconds_per_frame * 1000.;
         char title[256];
-        snprintf(title, 256, "%s | %7.2f ms/frame, %7.2f frames/s, %7.2f "
-            "frames/s avg", _title.c_str(), mspf, fps, fpsavg);
+        snprintf(title, 256, "%s | %7.2f ms/f, %7.2f f/s, %7.2f f/s avg"
+            ", %.3f mus/d", _title.c_str(), mspf, fps, fpsavg
+            , draw_duration.count());
         SDL_SetWindowTitle(_window, title);
       }
     }

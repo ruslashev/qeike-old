@@ -119,26 +119,26 @@ static void draw(double alpha) {
     , mvp = projection * view * model;
   glUniformMatrix4fv(mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
+  b->set_visible_faces(cam->pos());
+
   glEnableVertexAttribArray(vertex_pos_attr);
   glEnableVertexAttribArray(texture_coord_attr);
   glEnableVertexAttribArray(lightmap_coord_attr);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  b->set_visible_faces(cam->pos());
 
   for (size_t i = 0; i < b->faces.size(); i++) {
     if (!b->visible_faces[i] || (b->faces[i].type != 1 && b->faces[i].type != 3))
       continue;
     glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
         , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].position);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, b->texture_ids[b->faces[i].texture]);
     glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE
         , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].decal);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, b->lightmap_texture_ids[b->faces[i].lm_index]);
     glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
         , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].lightmap);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, b->texture_ids[b->faces[i].texture]);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, b->lightmap_texture_ids[b->faces[i].lm_index]);
     glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT
         , &b->meshverts[b->faces[i].meshvert].offset);
   }

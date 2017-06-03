@@ -1,9 +1,8 @@
 #pragma once
 
-// #include "ogl.hh"
-// #include <vector>
 #include <glm/glm.hpp>
 #include <vector>
+#include <map>
 #include "ogl.hh"
 
 #if 0
@@ -130,12 +129,6 @@ class bsp {
   std::vector<bsp_lightmap> _lightmaps;
   bsp_visdata _visdata;
 public:
-  bsp(const char *filename);
-  ~bsp();
-  int find_leaf(glm::vec3 position);
-  int cluster_visible(int vis_cluster, int test_cluster);
-  void set_visible_faces(glm::vec3 camera_pos);
-
   std::vector<unsigned int> texture_ids;
   std::vector<bsp_vertex> vertices;
   std::vector<bsp_meshvert> meshverts;
@@ -143,5 +136,11 @@ public:
   std::vector<int> visible_faces;
   std::vector<unsigned int> lightmap_texture_ids;
   array_buffer vbo;
+
+  bsp(const char *filename);
+  ~bsp();
+  int find_leaf(glm::vec3 position);
+  int cluster_visible(int vis_cluster, int test_cluster);
+  void set_visible_faces(glm::vec3 camera_pos);
 };
 

@@ -208,6 +208,13 @@ enum class lump {
   visdata
 };
 
+enum class face {
+  polygon = 1,
+  patch,
+  mesh,
+  billboard
+};
+
 struct bsp_direntry {
   int offset;
   int length;
@@ -223,7 +230,7 @@ template <typename T>
 void load_lump(std::ifstream &ifs, const bsp_header *header
     , lump lump_type, std::vector<T> &container) {
   int num_elements = header->direntries[(int)lump_type].length / sizeof(T);
-  container.reserve(num_elements); // TODO resize/1
+  container.reserve(num_elements);
   ifs.seekg(header->direntries[(int)lump_type].offset);
   for (int i = 0; i < num_elements; ++i) {
     T element;
@@ -251,7 +258,6 @@ bsp::bsp(const char *filename) {
   load_lump(ifs, &header, lump::textures, _textures);
   texture_ids.resize(_textures.size());
 
-  // TODO use std::swap
   load_lump(ifs, &header, lump::planes, _planes);
   for (bsp_plane &p : _planes) {
     std::swap(p.normal.y, p.normal.z);
@@ -293,13 +299,6 @@ bsp::bsp(const char *filename) {
   }
 
   load_lump(ifs, &header, lump::meshverts, meshverts);
-  for (size_t i = 0, v_offset = vertices.size(), i_offset = meshverts.size()
-      ; i < faces.size(); ++i)
-    if (faces[i].type == 2)
-      continue;
-    else
-      for (int j = 0; j < faces[i].n_meshverts; j++)
-        meshverts[faces[i].meshvert + j].offset += faces[i].vertex;
 
   load_lump(ifs, &header, lump::faces, faces);
   visible_faces.resize(faces.size(), 0);
@@ -311,7 +310,7 @@ bsp::bsp(const char *filename) {
   ifs.read((char*)&_visdata.n_vecs, sizeof(int));
   ifs.read((char*)&_visdata.sz_vecs, sizeof(int));
   int size = _visdata.n_vecs * _visdata.sz_vecs;
-  _visdata.vecs.resize(size);
+  _visdata.vecs.reserve(size);
   ifs.read((char*)&_visdata.vecs[0], size * sizeof(unsigned char));
 
 #if 0
@@ -356,12 +355,12 @@ bsp::bsp(const char *filename) {
   vbo.upload(sizeof(vertices[0]) * vertices.size(), &vertices[0]);
 
   glActiveTexture(GL_TEXTURE0);
-  for (size_t i = 0; i < _textures.size(); i++)
+  for (size_t i = 0; i < _textures.size(); ++i)
     texture_ids[i] = 0;
 
   glActiveTexture(GL_TEXTURE1);
   glGenTextures(_lightmaps.size(), &lightmap_texture_ids[0]);
-  for (size_t i = 0; i < _lightmaps.size(); i++) {
+  for (size_t i = 0; i < _lightmaps.size(); ++i) {
     glBindTexture(GL_TEXTURE_2D, lightmap_texture_ids[i]);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGB
         , GL_UNSIGNED_BYTE, _lightmaps[i].map);
