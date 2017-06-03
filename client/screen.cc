@@ -122,7 +122,7 @@ void screen::mainloop(void (*load_cb)(screen*)
           , mspf = seconds_per_frame * 1000.;
         char title[256];
         snprintf(title, 256, "%s | %7.2f ms/f, %7.2f f/s, %7.2f f/s avg"
-            ", %.3f mus/d", _title.c_str(), mspf, fps, fpsavg
+            ", %.3f us/d", _title.c_str(), mspf, fps, fpsavg
             , draw_duration.count());
         SDL_SetWindowTitle(_window, title);
       }

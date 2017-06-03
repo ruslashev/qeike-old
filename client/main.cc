@@ -8,14 +8,13 @@
 #include <glm/gtc/type_ptr.hpp>
 
 static float fov = 45, screen_aspect_ratio;
-static shaderprogram *sp;
-static shader *vs, *fs;
+static shader_program *sp;
 static GLint vertex_pos_attr, texture_coord_attr, lightmap_coord_attr /*, vertex_normal_attr */;
 // static array_buffer *cube_vbuf;
 static GLint /* resolution_unif, time_unif, */ mvp_mat_unif
     /* , object_color_unif, view_pos_unif, light_pos_unif */
     , texture_sampler_unif, lightmap_sampler_unif;
-static vertexarray *vao;
+// static vertex_array *vao;
 static int move, strafe;
 static camera *cam;
 static bsp *b;
@@ -32,9 +31,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  vs = new shader(shaders::map_vert, GL_VERTEX_SHADER);
-  fs = new shader(shaders::map_frag, GL_FRAGMENT_SHADER);
-  sp = new shaderprogram(*vs, *fs);
+  sp = new shader_program(shaders::map_vert, shaders::map_frag);
   sp->use_this_prog();
 
   vertex_pos_attr = sp->bind_attrib("vertex_pos");
@@ -151,11 +148,9 @@ static void draw(double alpha) {
 }
 
 static void cleanup() {
-  delete vs;
-  delete fs;
   delete sp;
   // delete cube_vbuf;
-  delete vao;
+  // delete vao;
   delete cam;
   delete b;
 }
