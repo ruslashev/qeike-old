@@ -302,6 +302,11 @@ bsp::bsp(const char *filename) {
 
   load_lump(ifs, &header, lump::faces, faces);
   visible_faces.resize(faces.size(), 0);
+  for (size_t i = 0; i < faces.size(); ++i) {
+    if (faces[i].type != (int)face::polygon && faces[i].type != (int)face::mesh)
+      continue;
+    _create_buffers_for_face(i);
+  }
 
   load_lump(ifs, &header, lump::lightmaps, _lightmaps);
   lightmap_texture_ids.resize(_lightmaps.size());
@@ -350,9 +355,6 @@ bsp::bsp(const char *filename) {
 #endif
 
   ifs.close();
-
-  vbo.bind();
-  vbo.upload(sizeof(vertices[0]) * vertices.size(), &vertices[0]);
 
   glActiveTexture(GL_TEXTURE0);
   for (size_t i = 0; i < _textures.size(); ++i)
@@ -406,5 +408,22 @@ void bsp::set_visible_faces(glm::vec3 camera_pos) {
     if (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
       for (int j = 0; j < l.n_leaffaces; j++)
         visible_faces[_leaffaces[l.leafface + j].face] = 1;
+}
+
+void bsp::_create_buffers_for_face(int i) {
+  glGenBuffers(1, &(face_vbos[i].vertex_buffer));
+  glBindBuffer(GL_ARRAY_BUFFER, face_vbos[i].vertex_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(bsp_vertex) * faces[i].n_vertices
+      , &(vertices[faces[i].vertex].position), GL_STATIC_DRAW);
+
+  glGenBuffers(1, &(face_vbos[i].texture_coord_buffer));
+  glBindBuffer(GL_ARRAY_BUFFER, face_vbos[i].texture_coord_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(bsp_vertex) * faces[i].n_vertices
+      , &(vertices[faces[i].vertex].decal), GL_STATIC_DRAW);
+
+  glGenBuffers(1, &(face_vbos[i].lightmap_coord_buffer));
+  glBindBuffer(GL_ARRAY_BUFFER, face_vbos[i].lightmap_coord_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(bsp_vertex) * faces[i].n_vertices
+      , &(vertices[faces[i].vertex].lightmap), GL_STATIC_DRAW);
 }
 

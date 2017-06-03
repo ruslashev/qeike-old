@@ -15,7 +15,7 @@ static GLint vertex_pos_attr, texture_coord_attr, lightmap_coord_attr /*, vertex
 static GLint /* resolution_unif, time_unif, */ mvp_mat_unif
     /* , object_color_unif, view_pos_unif, light_pos_unif */
     , texture_sampler_unif, lightmap_sampler_unif;
-static vertexarray *vao;
+// static vertexarray *vao;
 static int move, strafe;
 static camera *cam;
 static bsp *b;
@@ -124,23 +124,22 @@ static void draw(double alpha) {
   glEnableVertexAttribArray(vertex_pos_attr);
   glEnableVertexAttribArray(texture_coord_attr);
   glEnableVertexAttribArray(lightmap_coord_attr);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   for (size_t i = 0; i < b->faces.size(); i++) {
     if (!b->visible_faces[i] || (b->faces[i].type != 1 && b->faces[i].type != 3))
       continue;
-    glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
-        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].position);
-    glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE
-        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].decal);
-    glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
-        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].lightmap);
+    glBindBuffer(GL_ARRAY_BUFFER, b->face_vbos[i].vertex_buffer);
+    glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), (void*)(0));
+    glBindBuffer(GL_ARRAY_BUFFER, b->face_vbos[i].texture_coord_buffer);
+    glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), (void*)(0));
+    glBindBuffer(GL_ARRAY_BUFFER, b->face_vbos[i].lightmap_coord_buffer);
+    glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE, sizeof(bsp_vertex), (void*)(0));
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, b->texture_ids[b->faces[i].texture]);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, b->lightmap_texture_ids[b->faces[i].lm_index]);
-    glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT
-        , &b->meshverts[b->faces[i].meshvert].offset);
+
+    glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT, &b->meshverts[b->faces[i].meshvert]);
   }
 
   glDisableVertexAttribArray(vertex_pos_attr);
@@ -155,7 +154,7 @@ static void cleanup() {
   delete fs;
   delete sp;
   // delete cube_vbuf;
-  delete vao;
+  // delete vao;
   delete cam;
   delete b;
 }

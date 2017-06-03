@@ -120,6 +120,12 @@ struct bsp_visdata {
   std::vector<unsigned char> vecs;
 };
 
+struct face_buffer {
+  GLuint vertex_buffer;
+  GLuint texture_coord_buffer;
+  GLuint lightmap_coord_buffer;
+};
+
 class bsp {
   std::vector<bsp_texture> _textures;
   std::vector<bsp_plane> _planes;
@@ -128,6 +134,8 @@ class bsp {
   std::vector<bsp_leafface> _leaffaces;
   std::vector<bsp_lightmap> _lightmaps;
   bsp_visdata _visdata;
+
+  void _create_buffers_for_face(int i);
 public:
   std::vector<unsigned int> texture_ids;
   std::vector<bsp_vertex> vertices;
@@ -135,7 +143,7 @@ public:
   std::vector<bsp_face> faces;
   std::vector<int> visible_faces;
   std::vector<unsigned int> lightmap_texture_ids;
-  array_buffer vbo;
+  std::map<int, face_buffer> face_vbos;
 
   bsp(const char *filename);
   ~bsp();
