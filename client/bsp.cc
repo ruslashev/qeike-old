@@ -1,7 +1,8 @@
 #include "bsp.hh"
 #include "utils.hh"
-#include <cstring> // memset
+#include "shaders.hh"
 #include <fstream>
+#include <glm/gtc/type_ptr.hpp>
 
 const float feps = 1e-4f;
 const float scale = 16.f;
@@ -239,7 +240,8 @@ void load_lump(std::ifstream &ifs, const bsp_header *header
   }
 }
 
-bsp::bsp(const char *filename) {
+bsp::bsp(const char *filename)
+  : sp(shaders::map_vert, shaders::map_frag) {
   std::ifstream ifs(filename, std::ios::binary);
 
   bsp_header header;
@@ -291,20 +293,20 @@ bsp::bsp(const char *filename) {
 
   load_lump(ifs, &header, lump::leaffaces, _leaffaces);
 
-  load_lump(ifs, &header, lump::vertices, vertices);
-  for (bsp_vertex &v : vertices) {
+  load_lump(ifs, &header, lump::vertices, _vertices);
+  for (bsp_vertex &v : _vertices) {
     v.position /= scale;
     std::swap(v.position.y, v.position.z);
     v.position.z = -v.position.z;
   }
 
-  load_lump(ifs, &header, lump::meshverts, meshverts);
+  load_lump(ifs, &header, lump::meshverts, _meshverts);
 
-  load_lump(ifs, &header, lump::faces, faces);
-  visible_faces.resize(faces.size(), 0);
+  load_lump(ifs, &header, lump::faces, _faces);
+  _visible_faces.resize(_faces.size(), 0);
 
   load_lump(ifs, &header, lump::lightmaps, _lightmaps);
-  lightmap_texture_ids.resize(_lightmaps.size());
+  _lightmap_texture_ids.resize(_lightmaps.size());
 
   ifs.seekg(header.direntries[(int)lump::visdata].offset);
   ifs.read((char*)&_visdata.n_vecs, sizeof(int));
@@ -351,17 +353,25 @@ bsp::bsp(const char *filename) {
 
   ifs.close();
 
+  sp.use_this_prog();
+  _vertex_pos_attr = sp.bind_attrib("vertex_pos");
+  _texture_coord_attr = sp.bind_attrib("texture_coord");
+  _lightmap_coord_attr = sp.bind_attrib("lightmap_coord");
+  _mvp_mat_unif = sp.bind_uniform("mvp");
+  glUniform1i(glGetUniformLocation(sp.id, "texture_sampler"), 0);
+  glUniform1i(glGetUniformLocation(sp.id, "lightmap_sampler"), 1);
+
   vbo.bind();
-  vbo.upload(sizeof(vertices[0]) * vertices.size(), &vertices[0]);
+  vbo.upload(sizeof(_vertices[0]) * _vertices.size(), &_vertices[0]);
 
   glActiveTexture(GL_TEXTURE0);
   for (size_t i = 0; i < _textures.size(); ++i)
     texture_ids[i] = 0;
 
   glActiveTexture(GL_TEXTURE1);
-  glGenTextures(_lightmaps.size(), &lightmap_texture_ids[0]);
+  glGenTextures(_lightmaps.size(), &_lightmap_texture_ids[0]);
   for (size_t i = 0; i < _lightmaps.size(); ++i) {
-    glBindTexture(GL_TEXTURE_2D, lightmap_texture_ids[i]);
+    glBindTexture(GL_TEXTURE_2D, _lightmap_texture_ids[i]);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 128, 128, 0, GL_RGB
         , GL_UNSIGNED_BYTE, _lightmaps[i].map);
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -370,11 +380,12 @@ bsp::bsp(const char *filename) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
+  sp.dont_use_this_prog();
 }
 
 bsp::~bsp() {
   glDeleteTextures(_textures.size(), texture_ids.data());
-  glDeleteTextures(_lightmaps.size(), lightmap_texture_ids.data());
+  glDeleteTextures(_lightmaps.size(), _lightmap_texture_ids.data());
 }
 
 int bsp::find_leaf(glm::vec3 position) {
@@ -401,10 +412,45 @@ int bsp::cluster_visible(int vis_cluster, int test_cluster) {
 
 void bsp::set_visible_faces(glm::vec3 camera_pos) {
   int leaf_index = find_leaf(camera_pos);
-  std::fill(visible_faces.begin(), visible_faces.end(), 0);
+  std::fill(_visible_faces.begin(), _visible_faces.end(), 0);
   for (bsp_leaf &l : _leaves)
     if (cluster_visible(_leaves[leaf_index].cluster, l.cluster))
       for (int j = 0; j < l.n_leaffaces; j++)
-        visible_faces[_leaffaces[l.leafface + j].face] = 1;
+        _visible_faces[_leaffaces[l.leafface + j].face] = 1;
+}
+
+void bsp::render(const glm::mat4 &mvp) {
+  sp.use_this_prog();
+
+  glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
+
+  glEnableVertexAttribArray(_vertex_pos_attr);
+  glEnableVertexAttribArray(_texture_coord_attr);
+  glEnableVertexAttribArray(_lightmap_coord_attr);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  for (size_t i = 0; i < _faces.size(); i++) {
+    if (!_visible_faces[i] || (_faces[i].type != (int)face::polygon
+          && _faces[i].type != (int)face::mesh))
+      continue;
+    glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
+        , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].position);
+    glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE
+        , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].decal);
+    glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
+        , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].lightmap);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture_ids[_faces[i].texture]);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, _lightmap_texture_ids[_faces[i].lm_index]);
+    glDrawElements(GL_TRIANGLES, _faces[i].n_meshverts, GL_UNSIGNED_INT
+        , &_meshverts[_faces[i].meshvert].offset);
+  }
+
+  glDisableVertexAttribArray(_vertex_pos_attr);
+  glDisableVertexAttribArray(_texture_coord_attr);
+  glDisableVertexAttribArray(_lightmap_coord_attr);
+
+  sp.dont_use_this_prog();
 }
 

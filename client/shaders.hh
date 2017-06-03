@@ -2,7 +2,7 @@
 
 namespace shaders {
 
-const char *light_vert = _glsl(
+static const char *light_vert = _glsl(
   attribute vec3 vertex_pos;
   attribute vec3 vertex_normal;
   uniform mat4 model;
@@ -17,7 +17,7 @@ const char *light_vert = _glsl(
   }
 );
 
-const char *light_frag = _glsl(
+static const char *light_frag = _glsl(
   uniform vec2 iResolution;
   uniform float iGlobalTime;
   uniform vec3 light_pos;
@@ -45,7 +45,7 @@ const char *light_frag = _glsl(
   }
 );
 
-const char *map_vert = _glsl(
+static const char *map_vert = _glsl(
   attribute vec3 vertex_pos;
   attribute vec2 texture_coord;
   attribute vec2 lightmap_coord;
@@ -59,7 +59,7 @@ const char *map_vert = _glsl(
   }
 );
 
-const char *map_frag = _glsl(
+static const char *map_frag = _glsl(
   varying vec2 texture_coord_f;
   varying vec2 lightmap_coord_f;
   uniform sampler2D texture_sampler;

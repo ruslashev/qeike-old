@@ -126,15 +126,19 @@ class bsp {
   std::vector<bsp_node> _nodes;
   std::vector<bsp_leaf> _leaves;
   std::vector<bsp_leafface> _leaffaces;
+  std::vector<bsp_vertex> _vertices;
+  std::vector<bsp_meshvert> _meshverts;
+  std::vector<bsp_face> _faces;
+  std::vector<int> _visible_faces;
   std::vector<bsp_lightmap> _lightmaps;
+  std::vector<GLuint> _lightmap_texture_ids;
   bsp_visdata _visdata;
+
+  GLint _vertex_pos_attr, _texture_coord_attr, _lightmap_coord_attr
+    , _mvp_mat_unif;
 public:
-  std::vector<unsigned int> texture_ids;
-  std::vector<bsp_vertex> vertices;
-  std::vector<bsp_meshvert> meshverts;
-  std::vector<bsp_face> faces;
-  std::vector<int> visible_faces;
-  std::vector<unsigned int> lightmap_texture_ids;
+  std::vector<GLuint> texture_ids;
+  shader_program sp;
   array_buffer vbo;
 
   bsp(const char *filename);
@@ -142,5 +146,6 @@ public:
   int find_leaf(glm::vec3 position);
   int cluster_visible(int vis_cluster, int test_cluster);
   void set_visible_faces(glm::vec3 camera_pos);
+  void render(const glm::mat4 &mvp);
 };
 

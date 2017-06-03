@@ -4,16 +4,12 @@
 #include "screen.hh"
 #include "shaders.hh"
 #include "utils.hh"
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 static float fov = 45, screen_aspect_ratio;
-static shader_program *sp;
-static GLint vertex_pos_attr, texture_coord_attr, lightmap_coord_attr /*, vertex_normal_attr */;
+// static GLint vertex_normal_attr;
 // static array_buffer *cube_vbuf;
-static GLint /* resolution_unif, time_unif, */ mvp_mat_unif
-    /* , object_color_unif, view_pos_unif, light_pos_unif */
-    , texture_sampler_unif, lightmap_sampler_unif;
+// static GLint resolution_unif, time_unif, object_color_unif, view_pos_unif
+//     , light_pos_unif;
 // static vertex_array *vao;
 static int move, strafe;
 static camera *cam;
@@ -30,17 +26,6 @@ static void graphics_load(screen *s) {
   glEnable(GL_DEPTH_TEST);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
-
-  sp = new shader_program(shaders::map_vert, shaders::map_frag);
-  sp->use_this_prog();
-
-  vertex_pos_attr = sp->bind_attrib("vertex_pos");
-  texture_coord_attr = sp->bind_attrib("texture_coord");
-  lightmap_coord_attr = sp->bind_attrib("lightmap_coord");
-  mvp_mat_unif = sp->bind_uniform("mvp");
-
-  glUniform1i(glGetUniformLocation(sp->id, "texture_sampler"), 0);
-  glUniform1i(glGetUniformLocation(sp->id, "lightmap_sampler"), 1);
 
   b = new bsp("mapz/test1.bsp");
 }
@@ -108,47 +93,17 @@ static void draw_cube(glm::vec3 pos, glm::vec3 size, glm::vec3 color) {
 static void draw(double alpha) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  sp->use_this_prog();
+  b->set_visible_faces(cam->pos());
 
   glm::mat4 projection = glm::perspective(glm::radians(fov), screen_aspect_ratio
           , 0.1f, 1000.f)
     , view = cam->compute_view_mat(), model = glm::mat4()
     , mvp = projection * view * model;
-  glUniformMatrix4fv(mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  b->set_visible_faces(cam->pos());
-
-  glEnableVertexAttribArray(vertex_pos_attr);
-  glEnableVertexAttribArray(texture_coord_attr);
-  glEnableVertexAttribArray(lightmap_coord_attr);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  for (size_t i = 0; i < b->faces.size(); i++) {
-    if (!b->visible_faces[i] || (b->faces[i].type != 1 && b->faces[i].type != 3))
-      continue;
-    glVertexAttribPointer(vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
-        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].position);
-    glVertexAttribPointer(texture_coord_attr, 2, GL_FLOAT, GL_FALSE
-        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].decal);
-    glVertexAttribPointer(lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
-        , sizeof(bsp_vertex), &b->vertices[b->faces[i].vertex].lightmap);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, b->texture_ids[b->faces[i].texture]);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, b->lightmap_texture_ids[b->faces[i].lm_index]);
-    glDrawElements(GL_TRIANGLES, b->faces[i].n_meshverts, GL_UNSIGNED_INT
-        , &b->meshverts[b->faces[i].meshvert].offset);
-  }
-
-  glDisableVertexAttribArray(vertex_pos_attr);
-  glDisableVertexAttribArray(texture_coord_attr);
-  glDisableVertexAttribArray(lightmap_coord_attr);
-
-  sp->dont_use_this_prog();
+  b->render(mvp);
 }
 
 static void cleanup() {
-  delete sp;
   // delete cube_vbuf;
   // delete vao;
   delete cam;
