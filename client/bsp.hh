@@ -65,10 +65,8 @@ struct bsp_vertex {
   glm::vec2 lightmap;
   glm::vec3 normal;
   unsigned char color[4];
-#if 0
   bsp_vertex operator+(const bsp_vertex &v) const;
   bsp_vertex operator*(float factor) const;
-#endif
 };
 
 struct bsp_meshvert {
@@ -103,6 +101,30 @@ struct bsp_visdata {
   std::vector<unsigned char> vecs;
 };
 
+class bsp_biquadratic_patch {
+  int _tesselation_level;
+  std::vector<GLuint> _indices;
+  // store as pointer arrays for easier access by GL functions
+  int *_triangles_per_row;
+  unsigned int **_row_index_pointers;
+public:
+  bsp_vertex control_points[9];
+  std::vector<bsp_vertex> vertices;
+
+  bsp_biquadratic_patch();
+  ~bsp_biquadratic_patch();
+  void tesselate(int level);
+  void render() const;
+};
+
+struct bsp_patch {
+  int texture_idx;
+  int lightmap_idx;
+  int width;
+  int height;
+  std::vector<bsp_biquadratic_patch> quadratic_patches;
+};
+
 class bsp {
   std::vector<bsp_texture> _textures;
   std::vector<bsp_plane> _planes;
@@ -116,19 +138,22 @@ class bsp {
   std::vector<bsp_lightmap> _lightmaps;
   std::vector<GLuint> _lightmap_texture_ids;
   bsp_visdata _visdata;
+  std::vector<bsp_patch*> _patches;
   GLint _vertex_pos_attr, _texture_coord_attr, _lightmap_coord_attr
     , _mvp_mat_unif;
 
-  void _load_file(const char *filename, float world_scale);
+  void _load_file(const char *filename, float world_scale
+      , int tesselation_level);
   int _find_leaf(glm::vec3 position);
   int _cluster_visible(int vis_cluster, int test_cluster);
   void _set_visible_faces(glm::vec3 camera_pos);
+  void _create_patch(const bsp_face &f, int tesselation_level);
 public:
   std::vector<GLuint> texture_ids;
   shader_program sp;
   array_buffer vbo;
 
-  bsp(const char *filename, float world_scale);
+  bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();
   void render(glm::vec3 position, const glm::mat4 &mvp);
 };
