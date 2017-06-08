@@ -5,29 +5,16 @@
 #include <map>
 #include "ogl.hh"
 
+struct bsp_texture {
+  char name[64];
+  int flags;
+  int contents;
+};
+
 struct bsp_plane {
   glm::vec3 normal;
   float dist;
-
   bsp_plane();
-#if 0
-  bsp_plane(glm::vec3 newNormal, float n_intercept);
-  bsp_plane(const bsp_plane &rhs);
-  void set_normal(const glm::vec3 &rhs);
-  void set_intercept(float n_intercept);
-  void set_from_points(const glm::vec3 &p0, const glm::vec3 &p1
-      , const glm::vec3 &p2);
-  void calculate_intercept(const glm::vec3 &point_on_plane);
-  void normalize(void);
-  bool intersect3(const bsp_plane &p2, const bsp_plane &p3, glm::vec3 &result);
-  float get_distance(const glm::vec3 &point) const;
-  int classify_point(const glm::vec3 &point) const;
-  bsp_plane lerp(const bsp_plane &p2, float factor);
-  bool operator==(const bsp_plane &rhs) const;
-  bool operator!=(const bsp_plane &rhs) const;
-  bsp_plane operator-() const;
-  bsp_plane operator+() const;
-#endif
 };
 
 struct bsp_node {
@@ -36,12 +23,6 @@ struct bsp_node {
   int back;
   glm::ivec3 mins;
   glm::ivec3 maxs;
-};
-
-struct bsp_texture {
-  char name[64];
-  int flags;
-  int contents;
 };
 
 struct bsp_leaf {
@@ -57,6 +38,21 @@ struct bsp_leaf {
 
 struct bsp_leafface {
   int face;
+};
+
+struct bsp_leafbrush {
+  int brush;
+};
+
+struct bsp_brush {
+  int brushside;
+  int n_brushsides;
+  int texture;
+};
+
+struct bsp_brushside {
+  int plane;
+  int texture;
 };
 
 struct bsp_vertex {
@@ -125,12 +121,31 @@ struct bsp_patch {
   std::vector<bsp_biquadratic_patch> quadratic_patches;
 };
 
+enum class trace_type {
+  ray,
+  sphere,
+};
+
+struct trace_description {
+  trace_type type;
+  float radius;
+};
+
+struct trace_result {
+  glm::vec3 plane_collision_normal;
+  float fraction;
+  glm::vec3 end;
+};
+
 class bsp {
   std::vector<bsp_texture> _textures;
   std::vector<bsp_plane> _planes;
   std::vector<bsp_node> _nodes;
   std::vector<bsp_leaf> _leaves;
   std::vector<bsp_leafface> _leaffaces;
+  std::vector<bsp_leafbrush> _leafbrushes;
+  std::vector<bsp_brush> _brushes;
+  std::vector<bsp_brushside> _brushsides;
   std::vector<bsp_vertex> _vertices;
   std::vector<bsp_meshvert> _meshverts;
   std::vector<bsp_face> _faces;
@@ -148,6 +163,13 @@ class bsp {
   int _cluster_visible(int vis_cluster, int test_cluster);
   void _set_visible_faces(glm::vec3 camera_pos);
   void _create_patch(const bsp_face &f, int tesselation_level);
+  void _trace(const trace_description &t, trace_result &tr
+      , const glm::vec3 &start, const glm::vec3 &end);
+  void _check_node(const trace_description &t, trace_result &tr, int node_index
+      , float start_fraction, float end_fraction, const glm::vec3 &start
+      , const glm::vec3 &end);
+  void _check_brush(const trace_description &t, trace_result &tr, bsp_brush *b
+      , const glm::vec3 &input_start, const glm::vec3 &input_end);
 public:
   std::vector<GLuint> texture_ids;
   shader_program sp;
@@ -156,5 +178,7 @@ public:
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();
   void render(glm::vec3 position, const glm::mat4 &mvp);
+  void trace_sphere(trace_result &tr, const glm::vec3 &start
+    , const glm::vec3 &end, float radius);
 };
 

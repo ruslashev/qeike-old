@@ -71,92 +71,6 @@ void bsp_biquadratic_patch::render() const {
         &_indices[row * 2 * (_tesselation_level + 1)]);
 }
 
-#if 0
-bsp_plane::bsp_plane(glm::vec3 n_normal, float n_intercept)
-  : normal(n_normal)
-  , intercept(n_intercept) {
-}
-
-bsp_plane::bsp_plane(const bsp_plane &rhs) {
-  normal = rhs.normal;
-  intercept = rhs.intercept;
-}
-
-void bsp_plane::set_normal(const glm::vec3 &rhs) {
-  normal = rhs;
-}
-
-void bsp_plane::set_intercept(float n_intercept) {
-  intercept = n_intercept;
-}
-
-void bsp_plane::calculate_intercept(const glm::vec3 &point_on_plane) {
-  intercept = -glm::dot(normal, point_on_plane);
-}
-
-void bsp_plane::set_from_points(const glm::vec3 &p0, const glm::vec3 &p1
-    , const glm::vec3 &p2) {
-  normal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
-  calculate_intercept(p0);
-}
-
-void bsp_plane::normalize() {
-  float normal_len = normal.length();
-  normal /= normal_len;
-  intercept /= normal_len;
-}
-
-bool bsp_plane::intersect3(const bsp_plane &p2, const bsp_plane &p3
-    , glm::vec3 &result) {
-  float denominator = glm::dot(normal, glm::cross(p2.normal, p3.normal));
-  if (abs(denominator) <= feps)
-    return false;
-  glm::vec3 temp1 = glm::cross(p2.normal, p3.normal) * intercept
-    , temp2 = glm::cross(p3.normal, normal) * p2.intercept
-    , temp3 = glm::cross(normal, p2.normal) * p3.intercept;
-  result = (temp1 + temp2 + temp3) / (-denominator);
-  return true;
-}
-
-float bsp_plane::get_distance(const glm::vec3 &point) const {
-  return point.x * normal.x + point.y * normal.y + point.z * normal.z
-    + intercept;
-}
-
-int bsp_plane::classify_point(const glm::vec3 &point) const {
-  float distance = get_distance(point);
-  if (distance > feps)
-    return 1;
-  if (distance < -feps)
-    return -1;
-  return 0;
-}
-
-bsp_plane bsp_plane::lerp(const bsp_plane &p2, float factor) {
-  bsp_plane result;
-  result.normal = glm::normalize(normal * (1.0f - factor) + p2.normal * factor);
-  result.intercept = intercept * (1.0f - factor) + p2.intercept * factor;
-  return result;
-}
-
-bool bsp_plane::operator==(const bsp_plane &rhs) const {
-  return (glm::all(glm::lessThan(glm::abs(normal - rhs.normal), glm::vec3(feps)))
-      && abs(intercept - rhs.intercept) < feps);
-}
-
-bool bsp_plane::operator!=(const bsp_plane &rhs) const {
-  return !((*this) == rhs);
-}
-
-bsp_plane bsp_plane::operator-() const {
-  return bsp_plane(-normal, -intercept);
-}
-
-bsp_plane bsp_plane::operator+() const {
-  return (*this);
-}
-#endif
-
 bsp_vertex bsp_vertex::operator+(const bsp_vertex &v) const {
   bsp_vertex res;
   res.position = position + v.position;
@@ -278,6 +192,12 @@ void bsp::_load_file(const char *filename, float world_scale
   }
 
   load_lump(ifs, &header, lump::leaffaces, _leaffaces);
+
+  load_lump(ifs, &header, lump::leafbrushes, _leafbrushes);
+
+  load_lump(ifs, &header, lump::brushes, _brushes);
+
+  load_lump(ifs, &header, lump::brushsides, _brushsides);
 
   load_lump(ifs, &header, lump::vertices, _vertices);
   for (bsp_vertex &v : _vertices) {
@@ -405,11 +325,6 @@ bsp::~bsp() {
 }
 
 void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
-  /*
-     glEnable(GL_CULL_FACE);
-     glCullFace(GL_FRONT);
-  */
-
   _set_visible_faces(position);
 
   sp.use_this_prog();
@@ -464,5 +379,169 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
   glDisableVertexAttribArray(_lightmap_coord_attr);
 
   sp.dont_use_this_prog();
+}
+
+void bsp::trace_sphere(trace_result &tr, const glm::vec3 &start
+    , const glm::vec3 &end, float radius) {
+  trace_description t { trace_type::sphere, radius };
+  _trace(t, tr, start, end);
+}
+
+void bsp::_trace(const trace_description &td, trace_result &tr
+    , const glm::vec3 &start, const glm::vec3 &end) {
+  tr.fraction = 1.0f;
+
+  _check_node(td, tr, 0, 0.0f, 1.0f, start, end);
+
+  if (tr.fraction == 1.0f)
+    tr.end = end;
+  else
+    tr.end = start + tr.fraction * (end - start);
+}
+
+void bsp::_check_node(const trace_description &td, trace_result &tr
+    , int node_index, float start_fraction, float end_fraction
+    , const glm::vec3 &start, const glm::vec3 &end) {
+  if (node_index < 0) {
+    bsp_leaf *leaf = &_leaves[-(node_index + 1)];
+    for (int i = 0; i < leaf->n_leafbrushes; ++i) {
+      bsp_brush *b = &_brushes[_leafbrushes[leaf->leafbrush + i].brush];
+      //int check = check_aabb(start, vec3f_init(leaf->mins[0], leaf->mins[1]
+      //    , leaf->mins[2]), vec3f_init(leaf->maxs[0], leaf->maxs[1]
+      //    , leaf->maxs[2]));
+      if (b->n_brushsides > 0)
+        _check_brush(td, tr, b, start, end);
+    }
+    return;
+  }
+
+  bsp_node *node = &_nodes[node_index];
+  bsp_plane *plane = &_planes[node->plane];
+  float start_dist = glm::dot(start, plane->normal) - plane->dist
+    , end_dist = glm::dot(end, plane->normal) - plane->dist, offset = 0;
+
+  switch (td.type) {
+    case trace_type::ray:
+      offset = 0;
+      break;
+    case trace_type::sphere:
+      offset = td.radius;
+      break;
+    default:
+      offset = 0;
+      break;
+  }
+
+  if (start_dist >= offset && end_dist >= offset)
+    _check_node(td, tr, node->front, start_fraction, end_fraction, start, end);
+  else if (start_dist < -offset && end_dist < -offset)
+    _check_node(td, tr, node->back, start_fraction, end_fraction, start, end);
+  else {
+    int side;
+    float fraction1, fraction2, middle_fraction;
+    glm::vec3 middle;
+    if (start_dist < end_dist) {
+      side = 1; // back
+      float inverse_dist = 1.0f / (start_dist - end_dist);
+      fraction1 = (start_dist - offset + feps) * inverse_dist;
+      fraction2 = (start_dist + offset + feps) * inverse_dist;
+    } else if (end_dist < start_dist) {
+      side = 0; // front
+      float inverse_dist = 1.0f / (start_dist - end_dist);
+      fraction1 = (start_dist + offset + feps) * inverse_dist;
+      fraction2 = (start_dist - offset - feps) * inverse_dist;
+    } else {
+      side = 0;
+      fraction1 = 1.0f;
+      fraction2 = 0.0f;
+    }
+
+    if (fraction1 < 0.0f)
+      fraction1 = 0.0f;
+    else if (fraction1 > 1.0f)
+      fraction1 = 1.0f;
+    if (fraction2 < 0.0f)
+      fraction2 = 0.0f;
+    else if (fraction2 > 1.0f)
+      fraction2 = 1.0f;
+
+    middle_fraction = start_fraction + (end_fraction - start_fraction)
+      * fraction1;
+
+    middle = start + fraction1 * (end - start);
+
+    if (side == 0)
+      _check_node(td, tr, node->front, start_fraction, middle_fraction, start
+          , middle);
+    else
+      _check_node(td, tr, node->back, start_fraction, middle_fraction, start
+          , middle);
+
+    middle_fraction = start_fraction + (end_fraction - start_fraction) * fraction2;
+    middle = start + fraction2 * (end - start);
+
+    if (side == 0)
+      _check_node(td, tr, node->back, middle_fraction, end_fraction, middle, end);
+    else
+      _check_node(td, tr, node->front, middle_fraction, end_fraction, middle, end);
+  }
+}
+
+void bsp::_check_brush(const trace_description &t, trace_result &tr
+    , bsp_brush *b, const glm::vec3 &input_start, const glm::vec3 &input_end)
+{
+  float start_fraction = -1.0f, end_fraction = 1.0f;
+  int starts_out = 0;
+  for (int i = 0; i < b->n_brushsides; i++) {
+    bsp_brushside *brushSide = &_brushsides[b->brushside + i];
+    bsp_plane *plane = &_planes[brushSide->plane];
+    glm::vec3 offset;
+    float start_dist, end_dist;
+
+    switch (t.type) {
+      case trace_type::ray:
+        start_dist = glm::dot(input_start, plane->normal) - plane->dist;
+        end_dist = glm::dot(input_end, plane->normal) - plane->dist;
+        break;
+      case trace_type::sphere:
+        start_dist= glm::dot(input_start, plane->normal) - plane->dist - t.radius;
+        end_dist = glm::dot(input_end, plane->normal) - plane->dist - t.radius;
+        break;
+      default:
+        start_dist= glm::dot(input_start, plane->normal) - plane->dist;
+        end_dist = glm::dot(input_end, plane->normal) - plane->dist;
+        break;
+    }
+
+    if (start_dist > 0)
+      starts_out = 1;
+
+    if (start_dist > 0 && end_dist > 0)
+      continue;
+    if (start_dist <= 0 && end_dist <= 0)
+      continue;
+
+    if (start_dist > end_dist) {
+      float fraction = (start_dist - feps) / (start_dist - end_dist);
+      if (fraction > start_fraction) {
+        start_fraction = fraction;
+        tr.plane_collision_normal = plane->normal;
+      }
+    } else {
+      float fraction = (start_dist + feps) / (start_dist - end_dist);
+      if (fraction < end_fraction)
+        end_fraction = fraction;
+    }
+  }
+
+  if (!starts_out)
+    return;
+
+  if (start_fraction < end_fraction)
+    if (start_fraction > -1 && start_fraction < tr.fraction) {
+      if (start_fraction < 0)
+        start_fraction = 0;
+      tr.fraction = start_fraction;
+    }
 }
 

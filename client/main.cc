@@ -5,7 +5,7 @@
 #include "shaders.hh"
 #include "utils.hh"
 
-static float fov = 45, screen_aspect_ratio;
+static float fov = 60, screen_aspect_ratio;
 // static GLint vertex_normal_attr;
 // static array_buffer *cube_vbuf;
 // static GLint resolution_unif, time_unif, object_color_unif, view_pos_unif
@@ -25,10 +25,12 @@ static void graphics_load(screen *s) {
   cam = new camera(0, 5, 0);
 
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_CULL_FACE);
+  glCullFace(GL_FRONT);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new bsp("mapz/ztn3tourney1.bsp", 32.f, 10);
+  b = new bsp("mapz/test1.bsp", 32.f, 10);
 }
 
 static void load(screen *s) {
@@ -67,14 +69,21 @@ static void mouse_button_event(int button, bool down) {
 }
 
 static void update(double dt, double t, screen *s) {
-#if 0
-  sp->use_this_prog();
-  glUniform1f(time_unif, static_cast<GLfloat>(t));
-  sp->dont_use_this_prog();
-#endif
+  glm::vec3 old_pos = cam->pos;
   cam->update_position(dt, move, strafe);
-  // light_pos.x = cos(t) * 2;
-  // light_pos.z = sin(t) * 2;
+  trace_result tr;
+  b->trace_sphere(tr, old_pos, cam->pos, 1);
+  if (tr.fraction < 1.0f) {
+    glm::vec3 pos_diff = cam->pos - old_pos
+      , hit_dir = glm::normalize(pos_diff - tr.plane_collision_normal
+          * glm::dot(tr.plane_collision_normal, pos_diff))
+      , new_pos = tr.end + hit_dir * glm::length(cam->pos - tr.end)
+          * 0.5f;
+    cam->pos = new_pos;
+    b->trace_sphere(tr, old_pos, new_pos, 1);
+    if (tr.fraction < 1.0f)
+      cam->pos = tr.end;
+  }
 }
 
 #if 0
@@ -105,7 +114,7 @@ static void draw(double alpha) {
     , view = cam->compute_view_mat(), model = glm::mat4()
     , mvp = projection * view * model;
 
-  b->render(cam->pos(), mvp);
+  b->render(cam->pos, mvp);
 }
 
 static void cleanup() {
