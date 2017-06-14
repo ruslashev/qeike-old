@@ -135,6 +135,8 @@ struct trace_result {
   glm::vec3 clip_plane_normal;
   float fraction;
   glm::vec3 end;
+  bool start_solid;
+  bool all_solid;
 };
 
 class bsp {

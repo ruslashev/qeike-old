@@ -41,6 +41,7 @@ static char sdlkey_to_char(const SDL_Keycode &kc) {
     case SDLK_s: return 's';
     case SDLK_d: return 'd';
     case SDLK_f: return 'f';
+    case SDLK_x: return 'x';
     default:     return -1;
   }
 }

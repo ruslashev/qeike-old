@@ -390,6 +390,7 @@ void bsp::trace_sphere(trace_result *tr, const glm::vec3 &start
 void bsp::_trace(trace_result *tr, const trace_description &td
     , const glm::vec3 &start, const glm::vec3 &end) {
   tr->fraction = 1.0f;
+  tr->start_solid = tr->all_solid = false;
 
   _check_node(tr, td, 0, 0.0f, 1.0f, start, end);
 
@@ -403,6 +404,9 @@ void bsp::_trace(trace_result *tr, const trace_description &td
 void bsp::_check_node(trace_result *tr, const trace_description &td
     , int node_index, float start_fraction, float end_fraction
     , const glm::vec3 &start, const glm::vec3 &end) {
+  if (tr->fraction <= start_fraction)
+    return;
+
   if (node_index < 0) {
     bsp_leaf *leaf = &_leaves[-(node_index + 1)];
     for (int i = 0; i < leaf->n_leafbrushes; ++i) {
@@ -544,8 +548,14 @@ void bsp::_check_brush(trace_result *tr, const trace_description &td
     }
   }
 
-  if (!starts_out)
+  if (!starts_out) {
+    tr->start_solid = true;
+    if (!get_out) {
+      tr->all_solid = true;
+      tr->fraction = 0;
+    }
     return;
+  }
 
   if (start_fraction < end_fraction)
     if (start_fraction > -1 && start_fraction < tr->fraction) {

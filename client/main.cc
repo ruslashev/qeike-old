@@ -14,7 +14,7 @@ static float fov = 60, screen_aspect_ratio;
 static int move, strafe;
 static camera *cam;
 static bsp *b;
-static bool wireframe = false;
+static bool wireframe = false, noclip = true;
 
 static void graphics_load(screen *s) {
   s->lock_mouse();
@@ -45,6 +45,7 @@ static void key_event(char key, bool down) {
     case 'd': right    = down; break;
     case 'a': left     = down; break;
     case 'f': if (down) wireframe = !wireframe; break;
+    case 'x': if (down) noclip = !noclip; break;
     default: break;
   }
   if (forward == backward)
@@ -69,20 +70,10 @@ static void mouse_button_event(int button, bool down) {
 }
 
 static void update(double dt, double t, screen *s) {
-  glm::vec3 old_pos = cam->pos;
-  cam->update_position(dt, move, strafe);
-  trace_result tr;
-  b->trace_sphere(&tr, old_pos, cam->pos, 1);
-  if (tr.fraction < 1.0f) {
-    glm::vec3 pos_diff = cam->pos - old_pos
-      , hit_dir = glm::normalize(pos_diff - tr.clip_plane_normal
-          * glm::dot(tr.clip_plane_normal, pos_diff))
-      , new_pos = tr.end + hit_dir * glm::length(cam->pos - tr.end)
-          * 0.5f;
-    cam->pos = new_pos;
-    b->trace_sphere(&tr, old_pos, new_pos, 1);
-    if (tr.fraction < 1.0f)
-      cam->pos = tr.end;
+  // search for CM_BoxTrace and CM_TransformedBoxTrace
+  if (noclip) {
+    cam->update_position(dt, move, strafe);
+    return;
   }
 }
 
