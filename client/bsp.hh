@@ -132,7 +132,7 @@ struct trace_description {
 };
 
 struct trace_result {
-  glm::vec3 plane_collision_normal;
+  glm::vec3 clip_plane_normal;
   float fraction;
   glm::vec3 end;
 };
@@ -163,12 +163,12 @@ class bsp {
   int _cluster_visible(int vis_cluster, int test_cluster);
   void _set_visible_faces(glm::vec3 camera_pos);
   void _create_patch(const bsp_face &f, int tesselation_level);
-  void _trace(const trace_description &t, trace_result &tr
+  void _trace(trace_result *tr, const trace_description &td
       , const glm::vec3 &start, const glm::vec3 &end);
-  void _check_node(const trace_description &t, trace_result &tr, int node_index
+  void _check_node(trace_result *tr, const trace_description &td, int node_index
       , float start_fraction, float end_fraction, const glm::vec3 &start
       , const glm::vec3 &end);
-  void _check_brush(const trace_description &t, trace_result &tr, bsp_brush *b
+  void _check_brush(trace_result *tr, const trace_description &td, bsp_brush *b
       , const glm::vec3 &input_start, const glm::vec3 &input_end);
 public:
   std::vector<GLuint> texture_ids;
@@ -178,7 +178,7 @@ public:
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();
   void render(glm::vec3 position, const glm::mat4 &mvp);
-  void trace_sphere(trace_result &tr, const glm::vec3 &start
+  void trace_sphere(trace_result *tr, const glm::vec3 &start
     , const glm::vec3 &end, float radius);
 };
 

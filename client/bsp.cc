@@ -4,7 +4,7 @@
 #include <fstream>
 #include <glm/gtc/type_ptr.hpp>
 
-const float feps = 1e-4f;
+const float feps = 1e-4f, surface_clip_eps = 0.125f;
 
 bsp_plane::bsp_plane()
   : normal({ 0.f, 0.f, 0.f })
@@ -381,36 +381,34 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
   sp.dont_use_this_prog();
 }
 
-void bsp::trace_sphere(trace_result &tr, const glm::vec3 &start
+void bsp::trace_sphere(trace_result *tr, const glm::vec3 &start
     , const glm::vec3 &end, float radius) {
   trace_description t { trace_type::sphere, radius };
-  _trace(t, tr, start, end);
+  _trace(tr, t, start, end);
 }
 
-void bsp::_trace(const trace_description &td, trace_result &tr
+void bsp::_trace(trace_result *tr, const trace_description &td
     , const glm::vec3 &start, const glm::vec3 &end) {
-  tr.fraction = 1.0f;
+  tr->fraction = 1.0f;
 
-  _check_node(td, tr, 0, 0.0f, 1.0f, start, end);
+  _check_node(tr, td, 0, 0.0f, 1.0f, start, end);
 
-  if (tr.fraction == 1.0f)
-    tr.end = end;
+  if (tr->fraction == 1.0f)
+    tr->end = end;
   else
-    tr.end = start + tr.fraction * (end - start);
+    tr->end = start + tr->fraction * (end - start);
 }
 
-void bsp::_check_node(const trace_description &td, trace_result &tr
+// Q3: CM_TraceThroughTree
+void bsp::_check_node(trace_result *tr, const trace_description &td
     , int node_index, float start_fraction, float end_fraction
     , const glm::vec3 &start, const glm::vec3 &end) {
   if (node_index < 0) {
     bsp_leaf *leaf = &_leaves[-(node_index + 1)];
     for (int i = 0; i < leaf->n_leafbrushes; ++i) {
       bsp_brush *b = &_brushes[_leafbrushes[leaf->leafbrush + i].brush];
-      //int check = check_aabb(start, vec3f_init(leaf->mins[0], leaf->mins[1]
-      //    , leaf->mins[2]), vec3f_init(leaf->maxs[0], leaf->maxs[1]
-      //    , leaf->maxs[2]));
       if (b->n_brushsides > 0)
-        _check_brush(td, tr, b, start, end);
+        _check_brush(tr, td, b, start, end);
     }
     return;
   }
@@ -432,103 +430,115 @@ void bsp::_check_node(const trace_description &td, trace_result &tr
       break;
   }
 
-  if (start_dist >= offset && end_dist >= offset)
-    _check_node(td, tr, node->front, start_fraction, end_fraction, start, end);
-  else if (start_dist < -offset && end_dist < -offset)
-    _check_node(td, tr, node->back, start_fraction, end_fraction, start, end);
-  else {
-    int side;
-    float fraction1, fraction2, middle_fraction;
-    glm::vec3 middle;
-    if (start_dist < end_dist) {
-      side = 1; // back
-      float inverse_dist = 1.0f / (start_dist - end_dist);
-      fraction1 = (start_dist - offset + feps) * inverse_dist;
-      fraction2 = (start_dist + offset + feps) * inverse_dist;
-    } else if (end_dist < start_dist) {
-      side = 0; // front
-      float inverse_dist = 1.0f / (start_dist - end_dist);
-      fraction1 = (start_dist + offset + feps) * inverse_dist;
-      fraction2 = (start_dist - offset - feps) * inverse_dist;
-    } else {
-      side = 0;
-      fraction1 = 1.0f;
-      fraction2 = 0.0f;
-    }
-
-    if (fraction1 < 0.0f)
-      fraction1 = 0.0f;
-    else if (fraction1 > 1.0f)
-      fraction1 = 1.0f;
-    if (fraction2 < 0.0f)
-      fraction2 = 0.0f;
-    else if (fraction2 > 1.0f)
-      fraction2 = 1.0f;
-
-    middle_fraction = start_fraction + (end_fraction - start_fraction)
-      * fraction1;
-
-    middle = start + fraction1 * (end - start);
-
-    if (side == 0)
-      _check_node(td, tr, node->front, start_fraction, middle_fraction, start
-          , middle);
-    else
-      _check_node(td, tr, node->back, start_fraction, middle_fraction, start
-          , middle);
-
-    middle_fraction = start_fraction + (end_fraction - start_fraction) * fraction2;
-    middle = start + fraction2 * (end - start);
-
-    if (side == 0)
-      _check_node(td, tr, node->back, middle_fraction, end_fraction, middle, end);
-    else
-      _check_node(td, tr, node->front, middle_fraction, end_fraction, middle, end);
+  if (start_dist >= offset + 1 && end_dist >= offset + 1) {
+    _check_node(tr, td, node->front, start_fraction, end_fraction, start, end);
+    return;
+  } else if (start_dist < -offset - 1 && end_dist < -offset - 1) {
+    _check_node(tr, td, node->back, start_fraction, end_fraction, start, end);
+    return;
   }
+
+  int side;
+  float fraction1, fraction2;
+  if (start_dist < end_dist) {
+    float inverse_dist = 1.0f / (start_dist - end_dist); // TODO
+    side = 1; // back
+    fraction1 = (start_dist - offset + surface_clip_eps) * inverse_dist;
+    fraction2 = (start_dist + offset + surface_clip_eps) * inverse_dist;
+  } else if (start_dist > end_dist) {
+    float inverse_dist = 1.0f / (start_dist - end_dist);
+    side = 0; // front
+    fraction1 = (start_dist + offset + surface_clip_eps) * inverse_dist;
+    fraction2 = (start_dist - offset - surface_clip_eps) * inverse_dist;
+  } else {
+    side = 0;
+    fraction1 = 1.0f;
+    fraction2 = 0.0f;
+  }
+
+  // TODO
+  // fraction1 = clamp(fraction1, 0.f, 1.f);
+  // fraction2 = clamp(fraction2, 0.f, 1.f);
+  if (fraction1 < 0.0f)
+    fraction1 = 0.0f;
+  else if (fraction1 > 1.0f)
+    fraction1 = 1.0f;
+  if (fraction2 < 0.0f)
+    fraction2 = 0.0f;
+  else if (fraction2 > 1.0f)
+    fraction2 = 1.0f;
+
+  float middle_fraction = start_fraction + (end_fraction - start_fraction)
+    * fraction1;
+
+  glm::vec3 middle = start + fraction1 * (end - start);
+
+  if (side == 0)
+    _check_node(tr, td, node->front, start_fraction, middle_fraction, start
+        , middle);
+  else
+    _check_node(tr, td, node->back, start_fraction, middle_fraction, start
+        , middle);
+
+  middle_fraction = start_fraction + (end_fraction - start_fraction) * fraction2;
+  middle = start + fraction2 * (end - start);
+
+  if (side == 0)
+    _check_node(tr, td, node->back, middle_fraction, end_fraction, middle, end);
+  else
+    _check_node(tr, td, node->front, middle_fraction, end_fraction, middle, end);
 }
 
-void bsp::_check_brush(const trace_description &t, trace_result &tr
-    , bsp_brush *b, const glm::vec3 &input_start, const glm::vec3 &input_end)
-{
+// Q3: CM_TraceThroughBrush
+void bsp::_check_brush(trace_result *tr, const trace_description &td
+    , bsp_brush *b, const glm::vec3 &input_start, const glm::vec3 &input_end) {
   float start_fraction = -1.0f, end_fraction = 1.0f;
-  int starts_out = 0;
-  for (int i = 0; i < b->n_brushsides; i++) {
-    bsp_brushside *brushSide = &_brushsides[b->brushside + i];
-    bsp_plane *plane = &_planes[brushSide->plane];
+  bool get_out = false, starts_out = 0;
+  for (int i = 0; i < b->n_brushsides; ++i) {
+    bsp_brushside *brushside = &_brushsides[b->brushside + i];
+    bsp_plane *plane = &_planes[brushside->plane];
     glm::vec3 offset;
     float start_dist, end_dist;
 
-    switch (t.type) {
+    switch (td.type) {
       case trace_type::ray:
         start_dist = glm::dot(input_start, plane->normal) - plane->dist;
         end_dist = glm::dot(input_end, plane->normal) - plane->dist;
         break;
       case trace_type::sphere:
-        start_dist= glm::dot(input_start, plane->normal) - plane->dist - t.radius;
-        end_dist = glm::dot(input_end, plane->normal) - plane->dist - t.radius;
+        start_dist = glm::dot(input_start, plane->normal) - plane->dist - td.radius;
+        end_dist = glm::dot(input_end, plane->normal) - plane->dist - td.radius;
         break;
       default:
-        start_dist= glm::dot(input_start, plane->normal) - plane->dist;
+        start_dist = glm::dot(input_start, plane->normal) - plane->dist;
         end_dist = glm::dot(input_end, plane->normal) - plane->dist;
         break;
     }
 
+    if (end_dist > 0)
+      get_out = 1;
+
     if (start_dist > 0)
       starts_out = 1;
 
-    if (start_dist > 0 && end_dist > 0)
-      continue;
+    if (start_dist > 0 && (end_dist >= surface_clip_eps || end_dist >= start_dist))
+      return;
+
     if (start_dist <= 0 && end_dist <= 0)
       continue;
 
     if (start_dist > end_dist) {
-      float fraction = (start_dist - feps) / (start_dist - end_dist);
+      float fraction = (start_dist - surface_clip_eps) / (start_dist - end_dist);
+      if (fraction < 0)
+        fraction = 0;
       if (fraction > start_fraction) {
         start_fraction = fraction;
-        tr.plane_collision_normal = plane->normal;
+        tr->clip_plane_normal = plane->normal;
       }
     } else {
-      float fraction = (start_dist + feps) / (start_dist - end_dist);
+      float fraction = (start_dist + surface_clip_eps) / (start_dist - end_dist);
+      if (fraction > 1)
+        fraction = 1;
       if (fraction < end_fraction)
         end_fraction = fraction;
     }
@@ -538,10 +548,10 @@ void bsp::_check_brush(const trace_description &t, trace_result &tr
     return;
 
   if (start_fraction < end_fraction)
-    if (start_fraction > -1 && start_fraction < tr.fraction) {
+    if (start_fraction > -1 && start_fraction < tr->fraction) {
       if (start_fraction < 0)
         start_fraction = 0;
-      tr.fraction = start_fraction;
+      tr->fraction = start_fraction;
     }
 }
 

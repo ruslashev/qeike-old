@@ -72,15 +72,15 @@ static void update(double dt, double t, screen *s) {
   glm::vec3 old_pos = cam->pos;
   cam->update_position(dt, move, strafe);
   trace_result tr;
-  b->trace_sphere(tr, old_pos, cam->pos, 1);
+  b->trace_sphere(&tr, old_pos, cam->pos, 1);
   if (tr.fraction < 1.0f) {
     glm::vec3 pos_diff = cam->pos - old_pos
-      , hit_dir = glm::normalize(pos_diff - tr.plane_collision_normal
-          * glm::dot(tr.plane_collision_normal, pos_diff))
+      , hit_dir = glm::normalize(pos_diff - tr.clip_plane_normal
+          * glm::dot(tr.clip_plane_normal, pos_diff))
       , new_pos = tr.end + hit_dir * glm::length(cam->pos - tr.end)
           * 0.5f;
     cam->pos = new_pos;
-    b->trace_sphere(tr, old_pos, new_pos, 1);
+    b->trace_sphere(&tr, old_pos, new_pos, 1);
     if (tr.fraction < 1.0f)
       cam->pos = tr.end;
   }

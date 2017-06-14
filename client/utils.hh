@@ -88,3 +88,12 @@ inline std::string trim(std::string str) {
   return str.substr(first, (last - first + 1));
 }
 
+template <typename T>
+inline T clamp(T value, T min, T max) {
+  if (value < min)
+    return min;
+  if (value > max)
+    return max;
+  return value;
+}
+
