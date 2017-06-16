@@ -12,6 +12,7 @@ static float fov = 60, screen_aspect_ratio;
 //     , light_pos_unif;
 // static vertex_array *vao;
 static int move, strafe;
+static entity *player;
 static camera *cam;
 static bsp *b;
 static bool wireframe = false, noclip = true;
@@ -22,7 +23,8 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  cam = new camera(0, 5, 0);
+  player = new entity(0, 5, 0);
+  cam = new camera(player);
 
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
@@ -30,7 +32,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new bsp("mapz/test1.bsp", 32.f, 10);
+  b = new bsp("mapz/ztn3tourney1.bsp", 32.f, 10);
 }
 
 static void load(screen *s) {
@@ -74,6 +76,27 @@ static void update(double dt, double t, screen *s) {
   if (noclip) {
     cam->update_position(dt, move, strafe);
     return;
+  } else {
+    glm::vec3 old_pos = player->pos;
+    trace_result tr;
+    b->trace_sphere(&tr, old_pos, player->pos, 0.25f);
+    // glm::vec3 dot = glm::dot()
+    /*
+	dot = DotProduct( velocity, trace->plane.normal );
+	VectorMA( velocity, -2*dot, trace->plane.normal, le->pos.trDelta );
+
+	VectorScale( le->pos.trDelta, le->bounceFactor, le->pos.trDelta );
+
+	VectorCopy( trace->endpos, le->pos.trBase );
+	le->pos.trTime = cg.time;
+
+
+	// check for stop, making sure that even on low FPS systems it doesn't bobble
+	if ( trace->allsolid ||
+		( trace->plane.normal[2] > 0 &&
+		( le->pos.trDelta[2] < 40 || le->pos.trDelta[2] < -cg.frametime * le->pos.trDelta[2] ) ) ) {
+		le->pos.trType = TR_STATIONARY;
+     */
   }
 }
 
@@ -105,7 +128,7 @@ static void draw(double alpha) {
     , view = cam->compute_view_mat(), model = glm::mat4()
     , mvp = projection * view * model;
 
-  b->render(cam->pos, mvp);
+  b->render(player->pos, mvp);
 }
 
 static void cleanup() {
