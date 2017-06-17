@@ -1,5 +1,6 @@
 #include "bsp.hh"
 #include "camera.hh"
+#include "math.hh"
 #include "ogl.hh"
 #include "screen.hh"
 #include "shaders.hh"
@@ -23,12 +24,42 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  player = new entity(0, 5, 0);
+  player = new entity();
   cam = new camera(player);
 
   glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
+
   glEnable(GL_CULL_FACE);
-  glCullFace(GL_FRONT);
+  glCullFace(GL_BACK);
+  glFrontFace(GL_CCW);
+
+  // setup transforms
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  gluPerspective(45.0, 4.0/3.0, 0.1, 15);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  gluLookAt(0,0,5, 0,0,0, 0,1,0);
+
+  // set background color
+
+  glClearColor(0, 0, 0, 1);
+
+  // setup light
+
+  glEnable(GL_LIGHT0);
+  glShadeModel(GL_SMOOTH);
+
+  GLfloat lightAmbientColor[] = { 0.5, 0.5, 0.5, 1.0 };
+  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lightAmbientColor);
+
+  glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.01f);
+
+  GLfloat lightPosition[] = { 25.0, 10.0, 25.0, 1.0 };
+  glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
@@ -72,14 +103,15 @@ static void mouse_button_event(int button, bool down) {
 }
 
 static void update(double dt, double t, screen *s) {
+  player->update(dt, t);
   // search for CM_BoxTrace and CM_TransformedBoxTrace
   if (noclip) {
     cam->update_position(dt, move, strafe);
     return;
   } else {
-    glm::vec3 old_pos = player->pos;
-    trace_result tr;
-    b->trace_sphere(&tr, old_pos, player->pos, 0.25f);
+    // glm::vec3 old_pos = player->pos;
+    // trace_result tr;
+    // b->trace_sphere(&tr, old_pos, player->pos, 0.25f);
     // glm::vec3 dot = glm::dot()
     /*
 	dot = DotProduct( velocity, trace->plane.normal );
@@ -128,7 +160,8 @@ static void draw(double alpha) {
     , view = cam->compute_view_mat(), model = glm::mat4()
     , mvp = projection * view * model;
 
-  b->render(player->pos, mvp);
+  // b->render(player->pos, mvp);
+  player->draw(alpha);
 }
 
 static void cleanup() {

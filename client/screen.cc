@@ -55,7 +55,7 @@ void screen::mainloop(void (*load_cb)(screen*)
     , void (*cleanup_cb)(void)) {
   load_cb(this);
 
-  const int ticks_per_second = 100, max_update_ticks = 5;
+  const int ticks_per_second = 100, max_update_ticks = 15;
   // everywhere all time is measured in seconds unless otherwise stated
   double t = 0, dt = 1. / ticks_per_second;
   double current_time = get_time_in_seconds(), accumulator = 0;
@@ -66,7 +66,7 @@ void screen::mainloop(void (*load_cb)(screen*)
   while (running) {
     double real_time = get_time_in_seconds()
       , elapsed = real_time - current_time;
-    // elapsed = std::min(elapsed, max_update_ticks * dt);
+    elapsed = std::min(elapsed, max_update_ticks * dt);
     current_time = real_time;
     accumulator += elapsed;
 
@@ -109,7 +109,8 @@ void screen::mainloop(void (*load_cb)(screen*)
     auto draw_begin = std::chrono::high_resolution_clock::now();
     draw_cb(accumulator / dt);
     auto draw_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::micro> draw_duration = draw_end - draw_begin;
+    std::chrono::duration<double, std::micro> draw_duration = draw_end
+      - draw_begin;
 
     SDL_GL_SwapWindow(_window);
 

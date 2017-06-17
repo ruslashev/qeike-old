@@ -69,5 +69,20 @@ static const char *map_frag = _glsl(
   }
 );
 
+static const char *cube_vert = _glsl(
+  attribute vec3 vertex_pos;
+  uniform mat4 mvp;
+  void main() {
+    gl_Position = mvp * vec4(vertex_pos, 1.0);
+  }
+);
+
+static const char *cube_frag = _glsl(
+  uniform vec3 color;
+  void main() {
+    gl_FragColor = vec4(color, 1.0);
+  }
+);
+
 };
 
