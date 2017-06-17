@@ -1,5 +1,7 @@
 #include "entity.hh"
 #include "math.hh"
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 physics_state::physics_state()
   : position(glm::vec3(0, 0, 0))
@@ -106,78 +108,9 @@ void entity::_forces(const physics_state &state, double t, glm::vec3 &force
   torque -= 0.2f * state.angular_velocity;
 }
 
-#include <GL/glew.h>
-
-void entity::draw(float alpha) {
-  glPushMatrix();
-
-  // interpolate state with alpha for smooth animation
-
+glm::mat4 entity::compute_model_mat(float alpha) const {
   physics_state state = interpolate(_previous, _current, alpha);
-
-  // use position and orientation quaternion to build OpenGL body to world
-
-  glTranslatef(state.position.x, state.position.y, state.position.z);
-
-  float angle;
-  glm::vec3 axis;
-  qkmath::quat_get_angleaxis(state.orientation, &angle, &axis);
-
-  glRotatef(angle/3.1415f*180.f, axis.x, axis.y, axis.z);
-
-  // render cube
-
-  GLfloat color[] = { 1,1,1,1 };
-
-  glMaterialfv(GL_FRONT, GL_AMBIENT, color);
-  glMaterialfv(GL_FRONT, GL_DIFFUSE, color);
-
-  glEnable(GL_LIGHTING);
-
-  const float s = state.scale * 0.5f;
-
-  glBegin(GL_QUADS);
-
-  glNormal3f(0,0,+1);
-  glVertex3f(-s,-s,+s);
-  glVertex3f(+s,-s,+s);
-  glVertex3f(+s,+s,+s);
-  glVertex3f(-s,+s,+s);
-
-  glNormal3f(0,0,-1);
-  glVertex3f(-s,-s,-s);
-  glVertex3f(-s,+s,-s);
-  glVertex3f(+s,+s,-s);
-  glVertex3f(+s,-s,-s);
-
-  glNormal3f(0,+1,0);
-  glVertex3f(-s,+s,-s);
-  glVertex3f(-s,+s,+s);
-  glVertex3f(+s,+s,+s);
-  glVertex3f(+s,+s,-s);
-
-  glNormal3f(0,-1,0);
-  glVertex3f(-s,-s,-s);
-  glVertex3f(+s,-s,-s);
-  glVertex3f(+s,-s,+s);
-  glVertex3f(-s,-s,+s);
-
-  glNormal3f(+1,0,0);
-  glVertex3f(+s,-s,-s);
-  glVertex3f(+s,+s,-s);
-  glVertex3f(+s,+s,+s);
-  glVertex3f(+s,-s,+s);
-
-  glNormal3f(-1,0,0);
-  glVertex3f(-s,-s,-s);
-  glVertex3f(-s,-s,+s);
-  glVertex3f(-s,+s,+s);
-  glVertex3f(-s,+s,-s);
-
-  glEnd();
-
-  glDisable(GL_LIGHTING);
-
-  glPopMatrix();
+  glm::mat4 id = glm::mat4(), translation = glm::translate(id, state.position);
+  return translation * toMat4(state.orientation);
 }
 

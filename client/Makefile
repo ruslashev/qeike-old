@@ -3,7 +3,7 @@ warnings = -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-unused-variable \
 		   -Wduplicated-cond -Wdouble-promotion -Wnull-dereference -Wformat=2 \
 		   -Wdisabled-optimization -ftabstop=2 -Wsuggest-override -Wlogical-op
 flags = -ggdb3 -Og -std=c++0x -fno-rtti
-libraries = -lSDL2 -lGLEW -lGL -lGLU
+libraries = -lSDL2 -lGLEW -lGL
 CXX = g++
 CXXFLAGS = $(warnings) $(flags)
 LDFLAGS = $(libraries)

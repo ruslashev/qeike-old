@@ -39,6 +39,6 @@ class entity {
 public:
   entity();
   void update(double dt, double t);
-  void draw(float alpha = 1.0f);
+  glm::mat4 compute_model_mat(float alpha = 1.0f) const;
 };
 

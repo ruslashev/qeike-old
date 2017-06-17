@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <glm/mat4x4.hpp>
 
 void gl_error_description(GLenum err);
 
@@ -70,5 +71,16 @@ struct vertex_array {
   ~vertex_array();
   void bind() const;
   void unbind() const;
+};
+
+class cube_drawer {
+  // vertex_array _vao;
+  shader_program _sp;
+  GLint _vertex_pos_attr, _mvp_mat_unif;
+  array_buffer _vbo;
+  element_array_buffer _ebo;
+public:
+  cube_drawer();
+  void draw(const glm::mat4 &mvp);
 };
 
