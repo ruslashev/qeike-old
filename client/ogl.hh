@@ -12,7 +12,7 @@ void gl_error_description(GLenum err);
 #define gl_check_errors() do { \
   GLenum err = glGetError(); \
   while (err != GL_NO_ERROR) { \
-    fprintf(stderr, "glError %d at %s:%d\n", err, __FILE__, __LINE__); \
+    printf("glError %d at %s:%d\n", err, __FILE__, __LINE__); \
     gl_error_description(err); \
     err = glGetError(); \
   } \
@@ -65,16 +65,16 @@ public:
   void dont_use_this_prog();
 };
 
-struct vertex_array {
+struct vertex_array_object {
   GLuint id;
-  vertex_array();
-  ~vertex_array();
+  vertex_array_object();
+  ~vertex_array_object();
   void bind() const;
   void unbind() const;
 };
 
 class cube_drawer {
-  // vertex_array _vao;
+  // vertex_array_object _vao;
   shader_program _sp;
   GLint _vertex_pos_attr, _mvp_mat_unif;
   array_buffer _vbo;
