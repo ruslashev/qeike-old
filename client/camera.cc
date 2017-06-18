@@ -2,9 +2,8 @@
 #include "utils.hh"
 #include "config.hh"
 
-camera::camera(entity *n_entity_attached_to)
-  : entity_attached_to(n_entity_attached_to)
-  , pos(glm::vec3(0, 0, 5)) {
+camera::camera(float n_pos_x, float n_pos_y, float n_pos_z)
+  : pos(n_pos_x, n_pos_y, n_pos_z) {
   pitch = yaw = roll = 0;
 }
 

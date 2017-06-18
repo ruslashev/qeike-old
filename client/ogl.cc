@@ -217,19 +217,19 @@ void shader_program::dont_use_this_prog() {
   glUseProgram(0);
 }
 
-vertex_array::vertex_array() {
+vertex_array_object::vertex_array_object() {
   glGenVertexArrays(1, &id);
 }
 
-vertex_array::~vertex_array() {
+vertex_array_object::~vertex_array_object() {
   glDeleteVertexArrays(1, &id);
 }
 
-void vertex_array::bind() const {
+void vertex_array_object::bind() const {
   glBindVertexArray(id);
 }
 
-void vertex_array::unbind() const {
+void vertex_array_object::unbind() const {
   glBindVertexArray(0);
 }
 

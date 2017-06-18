@@ -156,9 +156,13 @@ class bsp {
   std::vector<GLuint> _lightmap_texture_ids;
   bsp_visdata _visdata;
   std::vector<bsp_patch*> _patches;
-  GLint _vertex_pos_attr, _texture_coord_attr, _lightmap_coord_attr
+  GLint _vertex_pos_attr, /* _texture_coord_attr, */ _lightmap_coord_attr
     , _mvp_mat_unif;
+  vertex_array_object _vao;
+  element_array_buffer _ebo;
+  array_buffer _vbo;
 
+  void _tesselate(int level, int controlOffset, int controlWidth, int vOffset, int iOffset);
   void _load_file(const char *filename, float world_scale
       , int tesselation_level);
   int _find_leaf(glm::vec3 position);
@@ -175,7 +179,6 @@ class bsp {
 public:
   std::vector<GLuint> texture_ids;
   shader_program sp;
-  array_buffer vbo;
 
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();

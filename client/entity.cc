@@ -34,20 +34,6 @@ static physics_state interpolate(const physics_state &a, const physics_state &b
   return state;
 }
 
-entity::entity()
- : _previous()
- , _current() {
-  _current.position = glm::vec3(2, 0, 0);
-  _current.momentum = glm::vec3(0, 0, -10);
-  _current.recalculate();
-  _previous = _current;
-}
-
-void entity::update(double dt, double t) {
-  _previous = _current;
-  _integrate(_current, dt, t);
-}
-
 void entity::_integrate(physics_state &state, double dt, double t) {
   physics_state_deriv a = _evaluate(state, t)
     , b = _evaluate(state, t, dt * 0.5, a)
@@ -106,6 +92,20 @@ void entity::_forces(const physics_state &state, double t, glm::vec3 &force
   torque.z = 1.2f * (float)glm::sin((float)t * 0.7f + 0.9f);
 
   torque -= 0.2f * state.angular_velocity;
+}
+
+entity::entity()
+ : _previous()
+ , _current() {
+  _current.position = glm::vec3(2, 0, 0);
+  _current.momentum = glm::vec3(0, 0, -10);
+  _current.recalculate();
+  _previous = _current;
+}
+
+void entity::update(double dt, double t) {
+  _previous = _current;
+  _integrate(_current, dt, t);
 }
 
 glm::mat4 entity::compute_model_mat(float alpha) const {
