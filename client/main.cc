@@ -115,7 +115,7 @@ static void draw(double alpha) {
     , view = cam->compute_view_mat(), model = player->compute_model_mat(alpha)
     , mvp = projection * view * model;
 
-  // b->render(player->pos, mvp);
+  // b->render(cam->pos, mvp);
   cd->draw(mvp);
 }
 
@@ -128,7 +128,7 @@ static void cleanup() {
 
 int main() {
   try {
-    screen s("woof", 700, 525);
+    screen s("qeike", 700, 525);
 
     s.mainloop(load, key_event, mouse_motion_event, mouse_button_event, update
         , draw, cleanup);

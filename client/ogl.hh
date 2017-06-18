@@ -82,5 +82,6 @@ class cube_drawer {
 public:
   cube_drawer();
   void draw(const glm::mat4 &mvp);
+  // void create_model_mat(const glm::vec3 &position, const glm::)
 };
 

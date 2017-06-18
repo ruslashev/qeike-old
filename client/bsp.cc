@@ -322,6 +322,8 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
 bsp::~bsp() {
   glDeleteTextures(_textures.size(), texture_ids.data());
   glDeleteTextures(_lightmaps.size(), _lightmap_texture_ids.data());
+  for (bsp_patch *p : _patches)
+    delete p;
 }
 
 void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
