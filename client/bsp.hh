@@ -176,6 +176,7 @@ public:
   std::vector<GLuint> texture_ids;
   shader_program sp;
   array_buffer vbo;
+  element_array_buffer ebo;
 
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();

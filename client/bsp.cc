@@ -210,9 +210,11 @@ void bsp::_load_file(const char *filename, float world_scale
 
   load_lump(ifs, &header, lump::faces, _faces);
   _visible_faces.resize(_faces.size(), 0);
+
   for (const bsp_face &f : _faces)
-    if (f.type == (int)face::patch)
-      _create_patch(f, tesselation_level);
+    if (f.type != (int)face::patch)
+      for (int i = 0; i < f.n_meshverts; ++i)
+        _meshverts[f.meshvert + i].offset += f.vertex;
 
   load_lump(ifs, &header, lump::lightmaps, _lightmaps);
   _lightmap_texture_ids.resize(_lightmaps.size());
@@ -300,6 +302,9 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
   vbo.bind();
   vbo.upload(sizeof(_vertices[0]) * _vertices.size(), &_vertices[0]);
 
+  ebo.bind();
+  ebo.upload(sizeof(_meshverts[0]) * _meshverts.size(), &_meshverts[0]);
+
   glEnableVertexAttribArray(_vertex_pos_attr);
   // glEnableVertexAttribArray(_texture_coord_attr);
   // glEnableVertexAttribArray(_lightmap_coord_attr);
@@ -337,7 +342,8 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
+      , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, position));
 
   for (size_t i = 0; i < _faces.size(); i++) {
     if (!_visible_faces[i])
@@ -348,14 +354,8 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
       glBindTexture(GL_TEXTURE_2D, texture_ids[_faces[i].texture]);
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_2D, _lightmap_texture_ids[_faces[i].lm_index]);
-      glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
-          , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].position);
-      // glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE
-      //     , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].decal);
-      // glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
-      //     , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].lightmap);
       glDrawElements(GL_TRIANGLES, _faces[i].n_meshverts, GL_UNSIGNED_INT
-          , &_meshverts[_faces[i].meshvert].offset);
+          , (void*)(long)(_faces[i].meshvert * sizeof(GLuint)));
     } else if (0 && _faces[i].type == (int)face::patch) {
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, texture_ids[_patches[i]->texture_idx]);

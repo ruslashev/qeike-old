@@ -82,7 +82,7 @@ void element_array_buffer::upload(const std::vector<GLushort> &data) const {
 }
 
 void element_array_buffer::upload(int size, const void *data) const {
-  glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
 }
 
 static std::string get_ogl_shader_err(GLint loglen
