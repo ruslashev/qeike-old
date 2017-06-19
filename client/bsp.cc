@@ -97,9 +97,6 @@ void bsp::_load_file(const char *filename, float world_scale
         , header.version);
   }
 
-  load_lump(ifs, &header, lump::textures, _textures);
-  texture_ids.resize(_textures.size());
-
   load_lump(ifs, &header, lump::planes, _planes);
   for (bsp_plane &p : _planes) {
     std::swap(p.normal.y, p.normal.z);
@@ -272,10 +269,8 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
 
   sp.use_this_prog();
   _vertex_pos_attr = sp.bind_attrib("vertex_pos");
-  _texture_coord_attr = sp.bind_attrib("texture_coord");
   _lightmap_coord_attr = sp.bind_attrib("lightmap_coord");
   _mvp_mat_unif = sp.bind_uniform("mvp");
-  glUniform1i(sp.bind_uniform("texture_sampler"), 0);
   glUniform1i(sp.bind_uniform("lightmap_sampler"), 1);
 
   vbo.bind();
@@ -285,12 +280,7 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
   ebo.upload(sizeof(_meshverts[0]) * _meshverts.size(), &_meshverts[0]);
 
   glEnableVertexAttribArray(_vertex_pos_attr);
-  glEnableVertexAttribArray(_texture_coord_attr);
   glEnableVertexAttribArray(_lightmap_coord_attr);
-
-  glActiveTexture(GL_TEXTURE0);
-  for (size_t i = 0; i < _textures.size(); ++i)
-    texture_ids[i] = 0;
 
   glActiveTexture(GL_TEXTURE1);
   glGenTextures(_lightmaps.size(), &_lightmap_texture_ids[0]);
@@ -308,7 +298,6 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
 }
 
 bsp::~bsp() {
-  glDeleteTextures(_textures.size(), texture_ids.data());
   glDeleteTextures(_lightmaps.size(), _lightmap_texture_ids.data());
 }
 
@@ -321,8 +310,6 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
 
   glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
       , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, position));
-  glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE
-      , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, decal));
   glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
       , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, lightmap));
 
@@ -332,8 +319,6 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
     if (_faces[i].type == (int)face::polygon
         || _faces[i].type == (int)face::mesh
         || _faces[i].type == (int)face::patch) {
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, texture_ids[_faces[i].texture]);
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_2D, _lightmap_texture_ids[_faces[i].lm_index]);
       glDrawElements(GL_TRIANGLES, _faces[i].n_meshverts, GL_UNSIGNED_INT

@@ -131,8 +131,7 @@ class bsp {
   std::vector<bsp_lightmap> _lightmaps;
   std::vector<GLuint> _lightmap_texture_ids;
   bsp_visdata _visdata;
-  GLint _vertex_pos_attr, _texture_coord_attr, _lightmap_coord_attr
-    , _mvp_mat_unif;
+  GLint _vertex_pos_attr, _lightmap_coord_attr, _mvp_mat_unif;
 
   void _load_file(const char *filename, float world_scale
       , int tesselation_level);
@@ -150,7 +149,6 @@ class bsp {
   void _check_brush(trace_result *tr, const trace_description &td, bsp_brush *b
       , const glm::vec3 &input_start, const glm::vec3 &input_end);
 public:
-  std::vector<GLuint> texture_ids;
   shader_program sp;
   array_buffer vbo;
   element_array_buffer ebo;

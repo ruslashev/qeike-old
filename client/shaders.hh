@@ -47,22 +47,17 @@ static const char *light_frag = _glsl(
 
 static const char *map_vert = _glsl(
   attribute vec3 vertex_pos;
-  attribute vec2 texture_coord;
   attribute vec2 lightmap_coord;
   uniform mat4 mvp;
-  varying vec2 texture_coord_f;
   varying vec2 lightmap_coord_f;
   void main() {
     gl_Position = mvp * vec4(vertex_pos, 1.0);
-    texture_coord_f = texture_coord;
     lightmap_coord_f = lightmap_coord;
   }
 );
 
 static const char *map_frag = _glsl(
-  varying vec2 texture_coord_f;
   varying vec2 lightmap_coord_f;
-  uniform sampler2D texture_sampler;
   uniform sampler2D lightmap_sampler;
   void main() {
     gl_FragColor = texture2D(lightmap_sampler, lightmap_coord_f);
