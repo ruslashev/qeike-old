@@ -11,66 +11,6 @@ bsp_plane::bsp_plane()
   , dist(0.0f) {
 }
 
-bsp_biquadratic_patch::bsp_biquadratic_patch()
-  : _tesselation_level(0)
-  , _triangles_per_row(nullptr)
-  , _row_index_pointers(nullptr) {
-}
-
-bsp_biquadratic_patch::~bsp_biquadratic_patch() {
-  delete [] _triangles_per_row;
-  delete [] _row_index_pointers;
-}
-
-void bsp_biquadratic_patch::tesselate(int level) {
-  _tesselation_level = level;
-  vertices.resize((_tesselation_level + 1) * (_tesselation_level + 1));
-
-  for (int i = 0; i <= _tesselation_level; ++i) {
-    float a = (float)i / (float)_tesselation_level, b = 1.f - a;
-    vertices[i] = control_points[0] * (b * b)
-      + control_points[3] * (2 * b * a)
-      + control_points[6] * (a * a);
-  }
-
-  for (int i = 1; i <= _tesselation_level; ++i) {
-    float a = (float)i / (float)_tesselation_level, b = 1.f - a;
-    bsp_vertex temp[3];
-    for (int j = 0, k = 0; j < 3; ++j, k = 3 * j)
-      temp[j] = control_points[k + 0] * b * b
-        + control_points[k + 1] * 2 * b * a
-        + control_points[k + 2] * a * a;
-    for (int j = 0; j <= _tesselation_level; ++j) {
-      float ta = (float)j / (float)_tesselation_level, tb = 1.f - ta;
-      vertices[i * (_tesselation_level + 1) + j] = temp[0] * tb * tb
-        + temp[1] * 2 * tb * ta
-        + temp[2] * ta * ta;
-    }
-  }
-
-  _indices.resize(_tesselation_level * (_tesselation_level + 1) * 2);
-  for (int row = 0; row < _tesselation_level; ++row)
-    for (int col = 0; col <= _tesselation_level; ++col) {
-      _indices[(row * (_tesselation_level + 1) + col) * 2 + 1]
-        =  row      * (_tesselation_level + 1) + col;
-      _indices[(row * (_tesselation_level + 1) + col) * 2]
-        = (row + 1) * (_tesselation_level + 1) + col;
-    }
-
-  _triangles_per_row = new int [_tesselation_level];
-  _row_index_pointers = new unsigned int* [_tesselation_level];
-  for (int row = 0; row < _tesselation_level; ++row) {
-    _triangles_per_row[row] = 2 * (_tesselation_level + 1);
-    _row_index_pointers[row] = &_indices[row * 2 * (_tesselation_level + 1)];
-  }
-}
-
-void bsp_biquadratic_patch::render() const {
-  for (int row = 0; row < _tesselation_level; ++row)
-    glDrawElements(GL_TRIANGLE_STRIP, 2 * (_tesselation_level + 1), GL_UNSIGNED_INT,
-        &_indices[row * 2 * (_tesselation_level + 1)]);
-}
-
 bsp_vertex bsp_vertex::operator+(const bsp_vertex &v) const {
   bsp_vertex res;
   res.position = position + v.position;
@@ -211,10 +151,33 @@ void bsp::_load_file(const char *filename, float world_scale
   load_lump(ifs, &header, lump::faces, _faces);
   _visible_faces.resize(_faces.size(), 0);
 
+  int patch_count = 0
+    , patch_size = (tesselation_level + 1) * (tesselation_level + 1)
+    , patch_index_size = tesselation_level * tesselation_level * 6;
+  // TODO
   for (const bsp_face &f : _faces)
-    if (f.type != (int)face::patch)
-      for (int i = 0; i < f.n_meshverts; ++i)
-        _meshverts[f.meshvert + i].offset += f.vertex;
+    if (f.type == (int)face::patch)
+      patch_count += ((f.size[0] - 1) / 2) * ((f.size[0] - 1) / 2);
+
+  size_t vertex_count = _vertices.size(), meshverts_count = _meshverts.size();
+  _vertices.resize(_vertices.size() + patch_count * patch_size);
+  _meshverts.resize(_meshverts.size() + patch_count * patch_index_size);
+  for (size_t i = 0, voff = vertex_count, eoff = meshverts_count; i < _faces.size(); ++i)
+    if (_faces[i].type == (int)face::patch) {
+      int dim_x = (_faces[i].size[0] - 1) / 2, dim_y = (_faces[i].size[1] - 1) / 2;
+      _faces[i].meshvert = eoff;
+      for (int x = 0, n = 0; n < dim_x; n++, x = 2 * n) // TODO prefix
+        for (int y = 0, m = 0; m < dim_y; m++, y = 2 * m) {
+          _tesselate(tesselation_level
+              , _faces[i].vertex + x + _faces[i].size[0] * y, _faces[i].size[0]
+              , voff, eoff);
+          voff += patch_size;
+          eoff += patch_index_size;
+        }
+      _faces[i].n_meshverts = eoff - _faces[i].meshvert;
+    } else
+      for (int j = 0; j < _faces[i].n_meshverts; ++j)
+        _meshverts[_faces[i].meshvert + j].offset += _faces[i].vertex;
 
   load_lump(ifs, &header, lump::lightmaps, _lightmaps);
   _lightmap_texture_ids.resize(_lightmaps.size());
@@ -227,6 +190,50 @@ void bsp::_load_file(const char *filename, float world_scale
   ifs.read((char*)&_visdata.vecs[0], size * sizeof(unsigned char));
 
   ifs.close();
+}
+
+void bsp::_tesselate(int tesselation_level, int control_offset
+    , int control_width, int voff, int eoff) {
+  bsp_vertex controls[9];
+  for (int c = 0, c_idx = 0; c < 3; c++) {
+    int pos = c * control_width;
+    controls[c_idx++] = _vertices[control_offset + pos];
+    controls[c_idx++] = _vertices[control_offset + pos + 1];
+    controls[c_idx++] = _vertices[control_offset + pos + 2];
+  }
+
+  int L1 = tesselation_level + 1;
+
+  for (int j = 0; j <= tesselation_level; ++j) {
+    float a = (float)j / tesselation_level, b = 1.f - a;
+    _vertices[voff + j] = controls[0] * b * b + controls[3] * 2 * b * a
+      + controls[6] * a * a;
+  }
+
+  for (int i = 1; i <= tesselation_level; ++i) {
+    float a = (float)i / tesselation_level, b = 1.f - a;
+    bsp_vertex temp[3];
+    for (int j = 0; j < 3; ++j) {
+      int k = 3 * j;
+      temp[j] = controls[k] * b * b + controls[k + 1] * 2 * b * a + controls[k + 2] * a * a;
+    }
+    for (int j = 0; j <= tesselation_level; ++j) {
+      float n_a = (float)j / tesselation_level, n_b = 1.f - n_a;
+      _vertices[voff + i * L1 + j] = temp[0] * n_b * n_b
+        + temp[1] * 2 * n_b * n_a + temp[2] * n_a * n_a;
+    }
+  }
+
+  for (int i = 0; i <= tesselation_level; ++i)
+    for (int j = 0; j <= tesselation_level; ++j) {
+      int offset = eoff + (i * tesselation_level + j) * 6;
+      _meshverts[offset + 0].offset = (i    ) * L1 + (j    ) + voff;
+      _meshverts[offset + 1].offset = (i    ) * L1 + (j + 1) + voff;
+      _meshverts[offset + 2].offset = (i + 1) * L1 + (j + 1) + voff;
+      _meshverts[offset + 3].offset = (i + 1) * L1 + (j + 1) + voff;
+      _meshverts[offset + 4].offset = (i + 1) * L1 + (j    ) + voff;
+      _meshverts[offset + 5].offset = (i    ) * L1 + (j    ) + voff;
+    }
 }
 
 int bsp::_find_leaf(glm::vec3 position) {
@@ -258,33 +265,6 @@ void bsp::_set_visible_faces(glm::vec3 camera_pos) {
     if (_cluster_visible(_leaves[leaf_index].cluster, l.cluster))
       for (int j = 0; j < l.n_leaffaces; j++)
         _visible_faces[_leaffaces[l.leafface + j].face] = 1;
-}
-
-void bsp::_create_patch(const bsp_face &f, int tesselation_level) {
-  bsp_patch *new_patch = new bsp_patch;
-  new_patch->texture_idx = f.texture;
-  new_patch->lightmap_idx = f.lm_index;
-  new_patch->width = f.size[0];
-  new_patch->height = f.size[1];
-  int num_patches_width  = (new_patch->width - 1) >> 1
-    , num_patches_height = (new_patch->height - 1) >> 1;
-
-  new_patch->quadratic_patches.resize(num_patches_width * num_patches_height);
-
-  for (int y = 0; y < num_patches_height; ++y)
-    for (int x = 0; x < num_patches_width; ++x) {
-      for (int row = 0; row < 3; ++row)
-        for (int col = 0; col < 3; ++col) {
-          int patch_idx = y * num_patches_width + x, cp_idx = row * 3 + col
-            , vert_idx = f.vertex + (y * 2 * new_patch->width + x * 2)
-            + row * new_patch->width + col;
-          new_patch->quadratic_patches[patch_idx].control_points[cp_idx]
-            = _vertices[vert_idx];
-        }
-      new_patch->quadratic_patches[y * num_patches_width + x].tesselate(tesselation_level);
-    }
-
-  _patches.push_back(new_patch);
 }
 
 bsp::bsp(const char *filename, float world_scale, int tesselation_level)
@@ -331,8 +311,6 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
 bsp::~bsp() {
   glDeleteTextures(_textures.size(), texture_ids.data());
   glDeleteTextures(_lightmaps.size(), _lightmap_texture_ids.data());
-  for (bsp_patch *p : _patches)
-    delete p;
 }
 
 void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
@@ -349,31 +327,14 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
     if (!_visible_faces[i])
       continue;
     if (_faces[i].type == (int)face::polygon
-        || _faces[i].type == (int)face::mesh) {
+        || _faces[i].type == (int)face::mesh
+        || _faces[i].type == (int)face::patch) {
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, texture_ids[_faces[i].texture]);
       glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_2D, _lightmap_texture_ids[_faces[i].lm_index]);
       glDrawElements(GL_TRIANGLES, _faces[i].n_meshverts, GL_UNSIGNED_INT
           , (void*)(long)(_faces[i].meshvert * sizeof(GLuint)));
-    } else if (0 && _faces[i].type == (int)face::patch) {
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D, texture_ids[_patches[i]->texture_idx]);
-      glActiveTexture(GL_TEXTURE1);
-      glBindTexture(GL_TEXTURE_2D
-          , _lightmap_texture_ids[_patches[i]->lightmap_idx]);
-      for (const bsp_biquadratic_patch &p : _patches[i]->quadratic_patches) {
-        glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
-            , sizeof(bsp_vertex)
-            , &p.vertices[0].position);
-        glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE
-            , sizeof(bsp_vertex)
-            , &p.vertices[0].decal);
-        glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
-            , sizeof(bsp_vertex)
-            , &p.vertices[0].lightmap);
-        p.render();
-      }
     }
   }
 

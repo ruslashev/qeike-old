@@ -97,30 +97,6 @@ struct bsp_visdata {
   std::vector<unsigned char> vecs;
 };
 
-class bsp_biquadratic_patch {
-  int _tesselation_level;
-  std::vector<GLuint> _indices;
-  // store as pointer arrays for easier access by GL functions
-  int *_triangles_per_row;
-  unsigned int **_row_index_pointers;
-public:
-  bsp_vertex control_points[9];
-  std::vector<bsp_vertex> vertices;
-
-  bsp_biquadratic_patch();
-  ~bsp_biquadratic_patch();
-  void tesselate(int level);
-  void render() const;
-};
-
-struct bsp_patch {
-  int texture_idx;
-  int lightmap_idx;
-  int width;
-  int height;
-  std::vector<bsp_biquadratic_patch> quadratic_patches;
-};
-
 enum class trace_type {
   ray,
   sphere,
@@ -155,12 +131,13 @@ class bsp {
   std::vector<bsp_lightmap> _lightmaps;
   std::vector<GLuint> _lightmap_texture_ids;
   bsp_visdata _visdata;
-  std::vector<bsp_patch*> _patches;
   GLint _vertex_pos_attr, _texture_coord_attr, _lightmap_coord_attr
     , _mvp_mat_unif;
 
   void _load_file(const char *filename, float world_scale
       , int tesselation_level);
+  void _tesselate(int tesselation_level, int control_offset, int control_width
+      , int voff, int eoff);
   int _find_leaf(glm::vec3 position);
   int _cluster_visible(int vis_cluster, int test_cluster);
   void _set_visible_faces(glm::vec3 camera_pos);
