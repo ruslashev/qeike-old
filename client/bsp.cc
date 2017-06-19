@@ -291,14 +291,18 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
 
   sp.use_this_prog();
   _vertex_pos_attr = sp.bind_attrib("vertex_pos");
-  _texture_coord_attr = sp.bind_attrib("texture_coord");
-  _lightmap_coord_attr = sp.bind_attrib("lightmap_coord");
+  // _texture_coord_attr = sp.bind_attrib("texture_coord");
+  // _lightmap_coord_attr = sp.bind_attrib("lightmap_coord");
   _mvp_mat_unif = sp.bind_uniform("mvp");
   glUniform1i(glGetUniformLocation(sp.id, "texture_sampler"), 0);
   glUniform1i(glGetUniformLocation(sp.id, "lightmap_sampler"), 1);
 
   vbo.bind();
   vbo.upload(sizeof(_vertices[0]) * _vertices.size(), &_vertices[0]);
+
+  glEnableVertexAttribArray(_vertex_pos_attr);
+  // glEnableVertexAttribArray(_texture_coord_attr);
+  // glEnableVertexAttribArray(_lightmap_coord_attr);
 
   glActiveTexture(GL_TEXTURE0);
   for (size_t i = 0; i < _textures.size(); ++i)
@@ -333,9 +337,6 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  glEnableVertexAttribArray(_vertex_pos_attr);
-  glEnableVertexAttribArray(_texture_coord_attr);
-  glEnableVertexAttribArray(_lightmap_coord_attr);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   for (size_t i = 0; i < _faces.size(); i++) {
@@ -349,13 +350,13 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
       glBindTexture(GL_TEXTURE_2D, _lightmap_texture_ids[_faces[i].lm_index]);
       glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
           , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].position);
-      glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE
-          , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].decal);
-      glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
-          , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].lightmap);
+      // glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE
+      //     , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].decal);
+      // glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
+      //     , sizeof(bsp_vertex), &_vertices[_faces[i].vertex].lightmap);
       glDrawElements(GL_TRIANGLES, _faces[i].n_meshverts, GL_UNSIGNED_INT
           , &_meshverts[_faces[i].meshvert].offset);
-    } else if (_faces[i].type == (int)face::patch) {
+    } else if (0 && _faces[i].type == (int)face::patch) {
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, texture_ids[_patches[i]->texture_idx]);
       glActiveTexture(GL_TEXTURE1);
@@ -375,10 +376,6 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
       }
     }
   }
-
-  glDisableVertexAttribArray(_vertex_pos_attr);
-  glDisableVertexAttribArray(_texture_coord_attr);
-  glDisableVertexAttribArray(_lightmap_coord_attr);
 
   sp.dont_use_this_prog();
 }

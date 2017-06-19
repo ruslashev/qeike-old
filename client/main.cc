@@ -10,7 +10,7 @@ static float fov = 60, screen_aspect_ratio;
 //     , light_pos_unif;
 // static vertex_array *vao;
 static int move, strafe;
-static cube_drawer *cd;
+// static cube_drawer *cd;
 static entity *player;
 static camera *cam;
 static bsp *b;
@@ -20,7 +20,7 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  cd = new cube_drawer;
+  // cd = new cube_drawer;
 
   player = new entity();
   cam = new camera(player);
@@ -115,8 +115,8 @@ static void draw(double alpha) {
     , view = cam->compute_view_mat(), model = player->compute_model_mat(alpha)
     , mvp = projection * view * model;
 
-  // b->render(cam->pos, mvp);
-  cd->draw(mvp);
+  b->render(cam->pos, projection * view);
+  // cd->draw(mvp);
 }
 
 static void cleanup() {
