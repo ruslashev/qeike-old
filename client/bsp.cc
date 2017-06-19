@@ -154,10 +154,9 @@ void bsp::_load_file(const char *filename, float world_scale
   int patch_count = 0
     , patch_size = (tesselation_level + 1) * (tesselation_level + 1)
     , patch_index_size = tesselation_level * tesselation_level * 6;
-  // TODO
   for (const bsp_face &f : _faces)
     if (f.type == (int)face::patch)
-      patch_count += ((f.size[0] - 1) / 2) * ((f.size[0] - 1) / 2);
+      patch_count += ((f.size[0] - 1) / 2) * ((f.size[1] - 1) / 2);
 
   size_t vertex_count = _vertices.size(), meshverts_count = _meshverts.size();
   _vertices.resize(_vertices.size() + patch_count * patch_size);
@@ -166,8 +165,8 @@ void bsp::_load_file(const char *filename, float world_scale
     if (_faces[i].type == (int)face::patch) {
       int dim_x = (_faces[i].size[0] - 1) / 2, dim_y = (_faces[i].size[1] - 1) / 2;
       _faces[i].meshvert = eoff;
-      for (int x = 0, n = 0; n < dim_x; n++, x = 2 * n) // TODO prefix
-        for (int y = 0, m = 0; m < dim_y; m++, y = 2 * m) {
+      for (int x = 0, n = 0; n < dim_x; x = 2 * (++n))
+        for (int y = 0, m = 0; m < dim_y; y = 2 * (++m)) {
           _tesselate(tesselation_level
               , _faces[i].vertex + x + _faces[i].size[0] * y, _faces[i].size[0]
               , voff, eoff);
@@ -273,11 +272,11 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
 
   sp.use_this_prog();
   _vertex_pos_attr = sp.bind_attrib("vertex_pos");
-  // _texture_coord_attr = sp.bind_attrib("texture_coord");
-  // _lightmap_coord_attr = sp.bind_attrib("lightmap_coord");
+  _texture_coord_attr = sp.bind_attrib("texture_coord");
+  _lightmap_coord_attr = sp.bind_attrib("lightmap_coord");
   _mvp_mat_unif = sp.bind_uniform("mvp");
-  glUniform1i(glGetUniformLocation(sp.id, "texture_sampler"), 0);
-  glUniform1i(glGetUniformLocation(sp.id, "lightmap_sampler"), 1);
+  glUniform1i(sp.bind_uniform("texture_sampler"), 0);
+  glUniform1i(sp.bind_uniform("lightmap_sampler"), 1);
 
   vbo.bind();
   vbo.upload(sizeof(_vertices[0]) * _vertices.size(), &_vertices[0]);
@@ -286,8 +285,8 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
   ebo.upload(sizeof(_meshverts[0]) * _meshverts.size(), &_meshverts[0]);
 
   glEnableVertexAttribArray(_vertex_pos_attr);
-  // glEnableVertexAttribArray(_texture_coord_attr);
-  // glEnableVertexAttribArray(_lightmap_coord_attr);
+  glEnableVertexAttribArray(_texture_coord_attr);
+  glEnableVertexAttribArray(_lightmap_coord_attr);
 
   glActiveTexture(GL_TEXTURE0);
   for (size_t i = 0; i < _textures.size(); ++i)
@@ -322,6 +321,10 @@ void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
 
   glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
       , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, position));
+  glVertexAttribPointer(_texture_coord_attr, 2, GL_FLOAT, GL_FALSE
+      , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, decal));
+  glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
+      , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, lightmap));
 
   for (size_t i = 0; i < _faces.size(); i++) {
     if (!_visible_faces[i])

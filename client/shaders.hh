@@ -65,7 +65,7 @@ static const char *map_frag = _glsl(
   uniform sampler2D texture_sampler;
   uniform sampler2D lightmap_sampler;
   void main() {
-    gl_FragColor = vec4(gl_FragCoord.w); // texture2D(lightmap_sampler, lightmap_coord_f);
+    gl_FragColor = texture2D(lightmap_sampler, lightmap_coord_f);
   }
 );
 
