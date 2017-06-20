@@ -115,7 +115,7 @@ static void draw(double alpha) {
     , view = cam->compute_view_mat(), model = player->compute_model_mat(alpha)
     , mvp = projection * view * model;
 
-  b->render(cam->pos, projection * view);
+  b->draw(cam->pos, projection * view);
   // cd->draw(mvp);
 }
 

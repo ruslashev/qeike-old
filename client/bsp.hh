@@ -5,98 +5,6 @@
 #include <map>
 #include "ogl.hh"
 
-struct bsp_texture {
-  char name[64];
-  int flags;
-  int contents;
-};
-
-struct bsp_plane {
-  glm::vec3 normal;
-  float dist;
-  bsp_plane();
-};
-
-struct bsp_node {
-  int plane;
-  int front;
-  int back;
-  glm::ivec3 mins;
-  glm::ivec3 maxs;
-};
-
-struct bsp_leaf {
-  int cluster;
-  int area;
-  glm::ivec3 mins;
-  glm::ivec3 maxs;
-  int leafface;
-  int n_leaffaces;
-  int leafbrush;
-  int n_leafbrushes;
-};
-
-struct bsp_leafface {
-  int face;
-};
-
-struct bsp_leafbrush {
-  int brush;
-};
-
-struct bsp_brush {
-  int brushside;
-  int n_brushsides;
-  int texture;
-};
-
-struct bsp_brushside {
-  int plane;
-  int texture;
-};
-
-struct bsp_vertex {
-  glm::vec3 position;
-  glm::vec2 decal;
-  glm::vec2 lightmap;
-  glm::vec3 normal;
-  unsigned char color[4];
-  bsp_vertex operator+(const bsp_vertex &v) const;
-  bsp_vertex operator*(float factor) const;
-};
-
-struct bsp_meshvert {
-  int offset;
-};
-
-struct bsp_face {
-  int texture;
-  int effect;
-  int type;
-  int vertex;
-  int n_vertices;
-  int meshvert;
-  int n_meshverts;
-  int lm_index;
-  glm::ivec2 lm_start;
-  glm::ivec2 lm_size;
-  glm::vec3 lm_origin;
-  glm::vec3 lm_s;
-  glm::vec3 lm_t;
-  glm::vec3 normal;
-  int size[2];
-};
-
-struct bsp_lightmap {
-  char map[128][128][3];
-};
-
-struct bsp_visdata {
-  int n_vecs;
-  int sz_vecs;
-  std::vector<unsigned char> vecs;
-};
-
 enum class trace_type {
   ray,
   sphere,
@@ -116,7 +24,90 @@ struct trace_result {
 };
 
 class bsp {
-  std::vector<bsp_texture> _textures;
+  struct bsp_plane {
+    glm::vec3 normal;
+    float dist;
+    bsp_plane();
+  };
+
+  struct bsp_node {
+    int plane;
+    int front;
+    int back;
+    glm::ivec3 mins;
+    glm::ivec3 maxs;
+  };
+
+  struct bsp_leaf {
+    int cluster;
+    int area;
+    glm::ivec3 mins;
+    glm::ivec3 maxs;
+    int leafface;
+    int n_leaffaces;
+    int leafbrush;
+    int n_leafbrushes;
+  };
+
+  struct bsp_leafface {
+    int face;
+  };
+
+  struct bsp_leafbrush {
+    int brush;
+  };
+
+  struct bsp_brush {
+    int brushside;
+    int n_brushsides;
+    int texture;
+  };
+
+  struct bsp_brushside {
+    int plane;
+    int texture;
+  };
+
+  struct bsp_vertex {
+    glm::vec3 position;
+    glm::vec2 lightmap;
+    bsp_vertex operator+(const bsp_vertex &v) const;
+    bsp_vertex operator*(float factor) const;
+  };
+
+  struct bsp_meshvert {
+    int offset;
+  };
+
+  struct bsp_face {
+    int texture;
+    int effect;
+    int type;
+    int vertex;
+    int n_vertices;
+    int meshvert;
+    int n_meshverts;
+    int lm_index;
+    glm::ivec2 lm_start;
+    glm::ivec2 lm_size;
+    glm::vec3 lm_origin;
+    glm::vec3 lm_s;
+    glm::vec3 lm_t;
+    glm::vec3 normal;
+    int size[2];
+  };
+
+  struct bsp_lightmap {
+    char map[128][128][3];
+  };
+
+  struct bsp_visdata {
+    int n_vecs;
+    int sz_vecs;
+    std::vector<unsigned char> vecs;
+  };
+
+
   std::vector<bsp_plane> _planes;
   std::vector<bsp_node> _nodes;
   std::vector<bsp_leaf> _leaves;
@@ -132,6 +123,10 @@ class bsp {
   std::vector<GLuint> _lightmap_texture_ids;
   bsp_visdata _visdata;
   GLint _vertex_pos_attr, _lightmap_coord_attr, _mvp_mat_unif;
+  shader_program _sp;
+  array_buffer _vbo;
+  element_array_buffer _ebo;
+  vertex_array_object _vao;
 
   void _load_file(const char *filename, float world_scale
       , int tesselation_level);
@@ -149,14 +144,10 @@ class bsp {
   void _check_brush(trace_result *tr, const trace_description &td, bsp_brush *b
       , const glm::vec3 &input_start, const glm::vec3 &input_end);
 public:
-  shader_program sp;
-  array_buffer vbo;
-  element_array_buffer ebo;
-
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();
-  void render(glm::vec3 position, const glm::mat4 &mvp);
+  void draw(const glm::vec3 &position, const glm::mat4 &mvp);
   void trace_sphere(trace_result *tr, const glm::vec3 &start
-    , const glm::vec3 &end, float radius);
+      , const glm::vec3 &end, float radius);
 };
 

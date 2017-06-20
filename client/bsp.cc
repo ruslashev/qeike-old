@@ -6,26 +6,22 @@
 
 const float feps = 1e-4f, surface_clip_eps = 0.125f;
 
-bsp_plane::bsp_plane()
+bsp::bsp_plane::bsp_plane()
   : normal({ 0.f, 0.f, 0.f })
   , dist(0.0f) {
 }
 
-bsp_vertex bsp_vertex::operator+(const bsp_vertex &v) const {
+bsp::bsp_vertex bsp::bsp_vertex::operator+(const bsp_vertex &v) const {
   bsp_vertex res;
   res.position = position + v.position;
-  res.decal = decal + v.decal;
   res.lightmap = lightmap + v.lightmap;
-  res.normal = normal + v.normal;
   return res;
 }
 
-bsp_vertex bsp_vertex::operator*(float factor) const {
+bsp::bsp_vertex bsp::bsp_vertex::operator*(float factor) const {
   bsp_vertex res;
   res.position = position * factor;
-  res.decal = decal * factor;
   res.lightmap = lightmap * factor;
-  res.normal = normal * factor;
   return res;
 }
 
@@ -65,6 +61,14 @@ struct bsp_header {
   char magic[4];
   int version;
   bsp_direntry direntries[17];
+};
+
+struct bsp_raw_vertex {
+  glm::vec3 position;
+  glm::vec2 decal;
+  glm::vec2 lightmap;
+  glm::vec3 normal;
+  unsigned char color[4];
 };
 
 template <typename T>
@@ -136,11 +140,15 @@ void bsp::_load_file(const char *filename, float world_scale
 
   load_lump(ifs, &header, lump::brushsides, _brushsides);
 
-  load_lump(ifs, &header, lump::vertices, _vertices);
-  for (bsp_vertex &v : _vertices) {
-    v.position /= world_scale;
-    std::swap(v.position.y, v.position.z);
-    v.position.z = -v.position.z;
+  std::vector<bsp_raw_vertex> raw_vertices;
+  load_lump(ifs, &header, lump::vertices, raw_vertices);
+  for (const bsp_raw_vertex &v : raw_vertices) {
+    bsp_vertex conv_vertex;
+    conv_vertex.position = v.position / world_scale;
+    std::swap(conv_vertex.position.y, conv_vertex.position.z);
+    conv_vertex.position.z = -conv_vertex.position.z;
+    conv_vertex.lightmap = v.lightmap;
+    _vertices.push_back(conv_vertex);
   }
 
   load_lump(ifs, &header, lump::meshverts, _meshverts);
@@ -153,7 +161,7 @@ void bsp::_load_file(const char *filename, float world_scale
     , patch_index_size = tesselation_level * tesselation_level * 6;
   for (const bsp_face &f : _faces)
     if (f.type == (int)face::patch)
-      patch_count += ((f.size[0] - 1) / 2) * ((f.size[1] - 1) / 2);
+      patch_count += ((f.size[0] - 1) / 2) * ((f.size[0] - 1) / 2);
 
   size_t vertex_count = _vertices.size(), meshverts_count = _meshverts.size();
   _vertices.resize(_vertices.size() + patch_count * patch_size);
@@ -264,20 +272,22 @@ void bsp::_set_visible_faces(glm::vec3 camera_pos) {
 }
 
 bsp::bsp(const char *filename, float world_scale, int tesselation_level)
-  : sp(shaders::map_vert, shaders::map_frag) {
+  : _sp(shaders::map_vert, shaders::map_frag) {
   _load_file(filename, world_scale, tesselation_level);
 
-  sp.use_this_prog();
-  _vertex_pos_attr = sp.bind_attrib("vertex_pos");
-  _lightmap_coord_attr = sp.bind_attrib("lightmap_coord");
-  _mvp_mat_unif = sp.bind_uniform("mvp");
-  glUniform1i(sp.bind_uniform("lightmap_sampler"), 1);
+  _vao.bind();
 
-  vbo.bind();
-  vbo.upload(sizeof(_vertices[0]) * _vertices.size(), &_vertices[0]);
+  _sp.use_this_prog();
+  _vertex_pos_attr = _sp.bind_attrib("vertex_pos");
+  _lightmap_coord_attr = _sp.bind_attrib("lightmap_coord");
+  _mvp_mat_unif = _sp.bind_uniform("mvp");
+  glUniform1i(_sp.bind_uniform("lightmap_sampler"), 1);
 
-  ebo.bind();
-  ebo.upload(sizeof(_meshverts[0]) * _meshverts.size(), &_meshverts[0]);
+  _vbo.bind();
+  _vbo.upload(sizeof(_vertices[0]) * _vertices.size(), &_vertices[0]);
+
+  _ebo.bind();
+  _ebo.upload(sizeof(_meshverts[0]) * _meshverts.size(), &_meshverts[0]);
 
   glEnableVertexAttribArray(_vertex_pos_attr);
   glEnableVertexAttribArray(_lightmap_coord_attr);
@@ -294,39 +304,48 @@ bsp::bsp(const char *filename, float world_scale, int tesselation_level)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   }
-  sp.dont_use_this_prog();
+  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
+      , sizeof(bsp_vertex), (void*)offsetof(bsp_vertex, position));
+  glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
+      , sizeof(bsp_vertex), (void*)offsetof(bsp_vertex, lightmap));
+
+  _sp.dont_use_this_prog();
+  _vao.unbind();
+  _vbo.unbind();
+  _ebo.unbind();
 }
 
 bsp::~bsp() {
   glDeleteTextures(_lightmaps.size(), _lightmap_texture_ids.data());
 }
 
-void bsp::render(glm::vec3 position, const glm::mat4 &mvp) {
+void bsp::draw(const glm::vec3 &position, const glm::mat4 &mvp) {
   _set_visible_faces(position);
 
-  sp.use_this_prog();
+  _vao.bind();
+  _vbo.bind();
+  _ebo.bind();
+  _sp.use_this_prog();
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
-      , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, position));
-  glVertexAttribPointer(_lightmap_coord_attr, 2, GL_FLOAT, GL_FALSE
-      , sizeof(bsp_vertex), (void*)(long)offsetof(bsp_vertex, lightmap));
-
+  glActiveTexture(GL_TEXTURE1);
   for (size_t i = 0; i < _faces.size(); i++) {
     if (!_visible_faces[i])
       continue;
     if (_faces[i].type == (int)face::polygon
         || _faces[i].type == (int)face::mesh
         || _faces[i].type == (int)face::patch) {
-      glActiveTexture(GL_TEXTURE1);
       glBindTexture(GL_TEXTURE_2D, _lightmap_texture_ids[_faces[i].lm_index]);
       glDrawElements(GL_TRIANGLES, _faces[i].n_meshverts, GL_UNSIGNED_INT
-          , (void*)(long)(_faces[i].meshvert * sizeof(GLuint)));
+          , (void*)(_faces[i].meshvert * sizeof(GLuint)));
     }
   }
 
-  sp.dont_use_this_prog();
+  _vao.unbind();
+  _vbo.unbind();
+  _ebo.unbind();
+  _sp.dont_use_this_prog();
 }
 
 void bsp::trace_sphere(trace_result *tr, const glm::vec3 &start
