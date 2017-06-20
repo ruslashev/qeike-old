@@ -4,7 +4,7 @@
 
 camera::camera(entity *n_entity_attached_to)
   : entity_attached_to(n_entity_attached_to)
-  , pos(glm::vec3(0, 0, 5)) {
+  , pos(glm::vec3(0, 1, 5)) {
   pitch = yaw = roll = 0;
 }
 

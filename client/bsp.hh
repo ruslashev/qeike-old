@@ -107,7 +107,6 @@ class bsp {
     std::vector<unsigned char> vecs;
   };
 
-
   std::vector<bsp_plane> _planes;
   std::vector<bsp_node> _nodes;
   std::vector<bsp_leaf> _leaves;
