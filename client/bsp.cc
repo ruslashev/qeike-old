@@ -336,8 +336,6 @@ void bsp::draw(const glm::vec3 &position, const glm::mat4 &mvp, const frustum &f
   _set_visible_faces(position, f);
 
   _vao.bind();
-  _vbo.bind();
-  _ebo.bind();
   _sp.use_this_prog();
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -356,8 +354,6 @@ void bsp::draw(const glm::vec3 &position, const glm::mat4 &mvp, const frustum &f
   }
 
   _vao.unbind();
-  _vbo.unbind();
-  _ebo.unbind();
   _sp.dont_use_this_prog();
 }
 

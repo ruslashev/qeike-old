@@ -237,7 +237,7 @@ cube_drawer::cube_drawer()
   : _sp(shaders::cube_vert, shaders::cube_frag)
   , _vertex_pos_attr(_sp.bind_attrib("vertex_pos"))
   , _mvp_mat_unif(_sp.bind_uniform("mvp")) {
-  // _vao.bind();
+  _vao.bind();
   _vbo.bind();
   const std::vector<float> verts = {
     -1, -1,  1, 1, -1,  1, 1,  1,  1, -1,  1,  1,
@@ -252,23 +252,21 @@ cube_drawer::cube_drawer()
   };
   _ebo.upload(elements);
   glEnableVertexAttribArray(_vertex_pos_attr);
-  // _vao.unbind();
-  // glDisableVertexAttribArray(_vertex_pos_attr);
-  // _vbo.unbind();
-  // _ebo.unbind();
+  _vao.unbind();
+  glDisableVertexAttribArray(_vertex_pos_attr);
+  _vbo.unbind();
+  _ebo.unbind();
 }
 
 void cube_drawer::draw(const glm::mat4 &mvp) {
-  // _vao.bind();
+  _vao.bind();
 
   _sp.use_this_prog();
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  int ebuf_size;
-  glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &ebuf_size);
-  glDrawElements(GL_TRIANGLES, ebuf_size / sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, 0);
 
-  // _vao.unbind();
+  _vao.unbind();
 }
 

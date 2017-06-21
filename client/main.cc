@@ -7,11 +7,8 @@
 #include "utils.hh"
 
 static float fov = 60, screen_aspect_ratio;
-// static GLint resolution_unif, time_unif, object_color_unif, view_pos_unif
-//     , light_pos_unif;
-// static vertex_array *vao;
 static int move, strafe;
-// static cube_drawer *cd;
+static cube_drawer *cd;
 static entity *player;
 static camera *cam;
 static bsp *b;
@@ -22,7 +19,7 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  // cd = new cube_drawer;
+  cd = new cube_drawer;
 
   player = new entity();
   cam = new camera(player);
@@ -116,18 +113,16 @@ static void draw(double alpha) {
   glm::mat4 projection = glm::perspective(glm::radians(fov), screen_aspect_ratio
           , 0.1f, 100.f)
     , view = cam->compute_view_mat(), model = player->compute_model_mat(alpha)
-    , mvp = projection * view * model;
+    , cube_mvp = projection * view * model;
 
   if (frustum_culling)
     f.extract_planes(projection * view);
 
   b->draw(cam->pos, projection * view, f);
-  // cd->draw(mvp);
+  cd->draw(cube_mvp);
 }
 
 static void cleanup() {
-  // delete cube_vbuf;
-  // delete vao;
   delete cam;
   delete b;
 }
