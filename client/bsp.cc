@@ -71,6 +71,17 @@ struct bsp_raw_vertex {
   unsigned char color[4];
 };
 
+struct bsp_raw_leaf {
+  int cluster;
+  int area;
+  glm::ivec3 mins;
+  glm::ivec3 maxs;
+  int leafface;
+  int n_leaffaces;
+  int leafbrush;
+  int n_leafbrushes;
+};
+
 template <typename T>
 void load_lump(std::ifstream &ifs, const bsp_header *header
     , lump lump_type, std::vector<T> &container) {
@@ -118,18 +129,19 @@ void bsp::_load_file(const char *filename, float world_scale
     n.maxs.z = -n.maxs.z;
   }
 
-  load_lump(ifs, &header, lump::leaves, _leaves);
-  for (bsp_leaf &l : _leaves) {
-    l.mins /= world_scale;
-    std::swap(l.mins.y, l.mins.z);
-    l.mins.z = -l.mins.z;
-    l.maxs /= world_scale;
-    std::swap(l.maxs.y, l.maxs.z);
-    l.maxs.z = -l.maxs.z;
-    if (l.mins.y > l.maxs.y)
-      std::swap(l.mins.y, l.maxs.y);
-    if (l.mins.z > l.maxs.z)
-      std::swap(l.mins.z, l.maxs.z);
+  std::vector<bsp_raw_leaf> raw_leaves;
+  load_lump(ifs, &header, lump::leaves, raw_leaves);
+  for (const bsp_raw_leaf &l : raw_leaves) {
+    bsp_leaf conv_leaf;
+    conv_leaf.cluster = l.cluster;
+    conv_leaf.area = l.area;
+    conv_leaf.mins = glm::vec3(l.mins.x, l.mins.z, -l.mins.y) / world_scale;
+    conv_leaf.maxs = glm::vec3(l.maxs.x, l.maxs.z, -l.maxs.y) / world_scale;
+    conv_leaf.leafface = l.leafface;
+    conv_leaf.n_leaffaces = l.n_leaffaces;
+    conv_leaf.leafbrush = l.leafbrush;
+    conv_leaf.n_leafbrushes = l.n_leafbrushes;
+    _leaves.push_back(conv_leaf);
   }
 
   load_lump(ifs, &header, lump::leaffaces, _leaffaces);
@@ -262,13 +274,14 @@ int bsp::_cluster_visible(int vis_cluster, int test_cluster) {
   return vis_set & (1 << (test_cluster & 7));
 }
 
-void bsp::_set_visible_faces(glm::vec3 camera_pos) {
+void bsp::_set_visible_faces(const glm::vec3 &camera_pos, const frustum &f) {
   int leaf_index = _find_leaf(camera_pos);
   std::fill(_visible_faces.begin(), _visible_faces.end(), 0);
   for (bsp_leaf &l : _leaves)
     if (_cluster_visible(_leaves[leaf_index].cluster, l.cluster))
-      for (int j = 0; j < l.n_leaffaces; j++)
-        _visible_faces[_leaffaces[l.leafface + j].face] = 1;
+      if (f.box_in_frustum(l.mins, l.maxs))
+        for (int j = 0; j < l.n_leaffaces; j++)
+          _visible_faces[_leaffaces[l.leafface + j].face] = 1;
 }
 
 bsp::bsp(const char *filename, float world_scale, int tesselation_level)
@@ -319,8 +332,8 @@ bsp::~bsp() {
   glDeleteTextures(_lightmaps.size(), _lightmap_texture_ids.data());
 }
 
-void bsp::draw(const glm::vec3 &position, const glm::mat4 &mvp) {
-  _set_visible_faces(position);
+void bsp::draw(const glm::vec3 &position, const glm::mat4 &mvp, const frustum &f) {
+  _set_visible_faces(position, f);
 
   _vao.bind();
   _vbo.bind();

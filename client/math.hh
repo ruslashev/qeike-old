@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/gtc/quaternion.hpp>
+
 namespace qkmath {
 
 inline float fastinvsqrt(float x) {

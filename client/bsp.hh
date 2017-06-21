@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <vector>
-#include <map>
+#include "frustum.hh"
 #include "ogl.hh"
 
 enum class trace_type {
@@ -41,8 +41,8 @@ class bsp {
   struct bsp_leaf {
     int cluster;
     int area;
-    glm::ivec3 mins;
-    glm::ivec3 maxs;
+    glm::vec3 mins;
+    glm::vec3 maxs;
     int leafface;
     int n_leaffaces;
     int leafbrush;
@@ -133,7 +133,7 @@ class bsp {
       , int voff, int eoff);
   int _find_leaf(glm::vec3 position);
   int _cluster_visible(int vis_cluster, int test_cluster);
-  void _set_visible_faces(glm::vec3 camera_pos);
+  void _set_visible_faces(const glm::vec3 &camera_pos, const frustum &f);
   void _create_patch(const bsp_face &f, int tesselation_level);
   void _trace(trace_result *tr, const trace_description &td
       , const glm::vec3 &start, const glm::vec3 &end);
@@ -145,7 +145,7 @@ class bsp {
 public:
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();
-  void draw(const glm::vec3 &position, const glm::mat4 &mvp);
+  void draw(const glm::vec3 &position, const glm::mat4 &mvp, const frustum &f);
   void trace_sphere(trace_result *tr, const glm::vec3 &start
       , const glm::vec3 &end, float radius);
 };
