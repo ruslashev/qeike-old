@@ -35,9 +35,11 @@ static physics_state interpolate(const physics_state &a, const physics_state &b
 }
 
 entity::entity()
- : _previous()
- , _current() {
-  _current.position = glm::vec3(2, 0, 0);
+ : entity(glm::vec3(0, 0, 0)) {
+}
+
+entity::entity(const glm::vec3 &n_position) {
+  _current.position = n_position;
   _current.momentum = glm::vec3(0, 0, -10);
   _current.recalculate();
   _previous = _current;

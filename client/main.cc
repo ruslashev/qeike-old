@@ -12,7 +12,7 @@ static cube_drawer *cd;
 static entity *player;
 static camera *cam;
 static bsp *b;
-static bool wireframe = false, noclip = true, frustum_culling = true;
+static bool wireframe = false, noclip = true, update_frustum_culling = true;
 static frustum f;
 
 static void graphics_load(screen *s) {
@@ -48,7 +48,7 @@ static void key_event(char key, bool down) {
     case 'a': left     = down; break;
     case 'f': if (down) wireframe = !wireframe; break;
     case 'x': if (down) noclip = !noclip; break;
-    case 'z': if (down) frustum_culling = !frustum_culling; break;
+    case 'z': if (down) update_frustum_culling = !update_frustum_culling; break;
     default: break;
   }
   if (forward == backward)
@@ -115,7 +115,7 @@ static void draw(double alpha) {
     , view = cam->compute_view_mat(), model = player->compute_model_mat(alpha)
     , cube_mvp = projection * view * model;
 
-  if (frustum_culling)
+  if (update_frustum_culling)
     f.extract_planes(projection * view);
 
   b->draw(cam->pos, projection * view, f);

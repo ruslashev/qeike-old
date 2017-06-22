@@ -38,6 +38,7 @@ class entity {
       , glm::vec3 &torque);
 public:
   entity();
+  entity(const glm::vec3 &n_position);
   void update(double dt, double t);
   glm::mat4 compute_model_mat(float alpha = 1.0f) const;
 };
