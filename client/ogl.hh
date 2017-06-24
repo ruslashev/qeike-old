@@ -33,6 +33,7 @@ class array_buffer : public ogl_buffer {
 public:
   array_buffer();
   void upload(const std::vector<GLfloat> &data) const;
+  void upload(const std::vector<glm::vec3> &data) const;
   void upload(int size, const void *data) const;
 };
 
@@ -40,6 +41,7 @@ class element_array_buffer : public ogl_buffer {
 public:
   element_array_buffer();
   void upload(const std::vector<GLushort> &data) const;
+  void upload(const std::vector<GLuint> &data) const;
   void upload(int size, const void *data) const;
 };
 
@@ -85,13 +87,27 @@ public:
 };
 
 class sphere_drawer {
+  struct triangle {
+    GLuint v1, v2, v3;
+    triangle(GLuint n_v1, GLuint n_v2, GLuint n_v3);
+  };
+
+  struct model {
+    std::vector<glm::vec3> vertices;
+    std::vector<triangle> triangles;
+  };
+
   vertex_array_object _vao;
   array_buffer _vbo;
   element_array_buffer _ebo;
   shader_program _sp;
   GLint _vertex_pos_attr, _mvp_mat_unif;
+  size_t _n_elements;
+
+  void _make_mesh(std::vector<glm::vec3> *vertices, std::vector<GLuint> *elements
+      , int subdivisions);
 public:
-  sphere_drawer();
+  sphere_drawer(int subdivisions = 4);
   void draw(const glm::mat4 &mvp);
 };
 

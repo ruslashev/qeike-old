@@ -67,6 +67,12 @@ void array_buffer::upload(const std::vector<GLfloat> &data) const {
       , GL_STATIC_DRAW);
 }
 
+void array_buffer::upload(const std::vector<glm::vec3> &data) const {
+  glBufferData(GL_ARRAY_BUFFER
+      , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
+      , GL_STATIC_DRAW);
+}
+
 void array_buffer::upload(int size, const void *data) const {
   glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
 }
@@ -76,6 +82,12 @@ element_array_buffer::element_array_buffer()
 }
 
 void element_array_buffer::upload(const std::vector<GLushort> &data) const {
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER
+      , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
+      , GL_STATIC_DRAW);
+}
+
+void element_array_buffer::upload(const std::vector<GLuint> &data) const {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER
       , static_cast<GLsizeiptr>(data.size() * sizeof(data[0])), data.data()
       , GL_STATIC_DRAW);
@@ -239,56 +251,126 @@ cube_drawer::cube_drawer()
   , _mvp_mat_unif(_sp.bind_uniform("mvp")) {
   _vao.bind();
   _vbo.bind();
+  _ebo.bind();
   const std::vector<float> verts = {
     -0.5, -0.5,  0.5, 0.5, -0.5,  0.5, 0.5,  0.5,  0.5, -0.5,  0.5,  0.5,
     -0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5,  0.5, -0.5, -0.5,  0.5, -0.5,
   };
   _vbo.upload(verts);
-  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, 0, 0);
-  _ebo.bind();
   const std::vector<GLushort> elements = {
     0, 1, 2, 2, 3, 0, 1, 5, 6, 6, 2, 1, 7, 6, 5, 5, 4, 7,
     4, 0, 3, 3, 7, 4, 4, 5, 1, 1, 0, 4, 3, 2, 6, 6, 7, 3,
   };
   _ebo.upload(elements);
   glEnableVertexAttribArray(_vertex_pos_attr);
+  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, 0, 0);
   _vao.unbind();
-  glDisableVertexAttribArray(_vertex_pos_attr);
   _vbo.unbind();
   _ebo.unbind();
+  glDisableVertexAttribArray(_vertex_pos_attr);
 }
 
 void cube_drawer::draw(const glm::mat4 &mvp) {
   _vao.bind();
-
   _sp.use_this_prog();
-
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
-
   glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, 0);
-
   _vao.unbind();
 }
 
-sphere_drawer::sphere_drawer()
+sphere_drawer::triangle::triangle(GLuint n_v1, GLuint n_v2, GLuint n_v3)
+  : v1(n_v1)
+  , v2(n_v2)
+  , v3(n_v3) {
+};
+
+void sphere_drawer::_make_mesh(std::vector<glm::vec3> *vertices
+    , std::vector<GLuint> *elements, int subdivisions) {
+  model m;
+
+  const float M1S2 = (float)(1. / M_SQRT2);
+  m.vertices.emplace_back(   0,  M1S2,    0);
+  m.vertices.emplace_back(   0, -M1S2,    0);
+  m.vertices.emplace_back( 0.5,     0,  0.5);
+  m.vertices.emplace_back( 0.5,     0, -0.5);
+  m.vertices.emplace_back(-0.5,     0,  0.5);
+  m.vertices.emplace_back(-0.5,     0, -0.5);
+
+  m.triangles.emplace_back(0, 4, 2);
+  m.triangles.emplace_back(0, 2, 3);
+  m.triangles.emplace_back(0, 3, 5);
+  m.triangles.emplace_back(0, 5, 4);
+  m.triangles.emplace_back(1, 2, 4);
+  m.triangles.emplace_back(1, 3, 2);
+  m.triangles.emplace_back(1, 5, 3);
+  m.triangles.emplace_back(1, 4, 5);
+
+  for (int it = 0; it < subdivisions; ++it) {
+    model new_model;
+    new_model.vertices = std::move(m.vertices);
+    for (size_t i = 0; i < m.triangles.size(); ++i) {
+      /* rough presentation of what's going on:
+       *       v1
+       *       O
+       *      / \
+       *  n3 o   o n1 <-- triangles[i]
+       *    /     \
+       *   O---o---O
+       * v3   n2    v2
+       */
+      // midpoints n1,... between existing vertices v1,...
+      const glm::vec3 v1 = new_model.vertices[m.triangles[i].v1]
+        , v2 = new_model.vertices[m.triangles[i].v2]
+        , v3 = new_model.vertices[m.triangles[i].v3]
+        , n1 = (v1 + v2) / 2.f, n2 = (v2 + v3) / 2.f, n3 = (v3 + v1) / 2.f;
+      // new midpoints are pushed as new vertices
+      new_model.vertices.push_back(n1);
+      new_model.vertices.push_back(n2);
+      new_model.vertices.push_back(n3);
+      // and their indices are remembered as well as old ones
+      const GLuint en1 = new_model.vertices.size() - 3
+        , en2 = new_model.vertices.size() - 2
+        , en3 = new_model.vertices.size() - 1
+        , ev1 = m.triangles[i].v1
+        , ev2 = m.triangles[i].v2
+        , ev3 = m.triangles[i].v3;
+      // to construct new triangles
+      new_model.triangles.emplace_back(ev1, en1, en3);
+      new_model.triangles.emplace_back(en1, ev2, en2);
+      new_model.triangles.emplace_back(en3, en2, ev3);
+      new_model.triangles.emplace_back(en1, en2, en3);
+    }
+    m = std::move(new_model);
+  }
+
+  for (const glm::vec3 &v : m.vertices) {
+    glm::vec3 nv = glm::normalize(v);
+    // nv *= expOut(0.95, 1., -glm::simplex(nv * 5.f));
+    vertices->push_back(nv);
+  }
+
+  for (const triangle &t : m.triangles) {
+    elements->push_back(t.v1);
+    elements->push_back(t.v2);
+    elements->push_back(t.v3);
+  }
+}
+
+sphere_drawer::sphere_drawer(int subdivisions)
   : _sp(shaders::simple_vert, shaders::simple_frag)
   , _vertex_pos_attr(_sp.bind_attrib("vertex_pos"))
   , _mvp_mat_unif(_sp.bind_uniform("mvp")) {
   _vao.bind();
+  std::vector<glm::vec3> vertices;
+  std::vector<GLuint> elements;
+  _make_mesh(&vertices, &elements, subdivisions);
+  _n_elements = elements.size();
   _vbo.bind();
-  const std::vector<float> verts = {
-    -1, -1,  1, 1, -1,  1, 1,  1,  1, -1,  1,  1,
-    -1, -1, -1, 1, -1, -1, 1,  1, -1, -1,  1, -1,
-  };
-  _vbo.upload(verts);
-  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, 0, 0);
+  _vbo.upload(vertices);
   _ebo.bind();
-  const std::vector<GLushort> elements = {
-    0, 1, 2, 2, 3, 0, 1, 5, 6, 6, 2, 1, 7, 6, 5, 5, 4, 7,
-    4, 0, 3, 3, 7, 4, 4, 5, 1, 1, 0, 4, 3, 2, 6, 6, 7, 3,
-  };
   _ebo.upload(elements);
   glEnableVertexAttribArray(_vertex_pos_attr);
+  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0);
   _vao.unbind();
   glDisableVertexAttribArray(_vertex_pos_attr);
   _vbo.unbind();
@@ -297,13 +379,9 @@ sphere_drawer::sphere_drawer()
 
 void sphere_drawer::draw(const glm::mat4 &mvp) {
   _vao.bind();
-
   _sp.use_this_prog();
-
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
-
-  glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, 0);
-
+  glDrawElements(GL_TRIANGLES, _n_elements, GL_UNSIGNED_INT, 0);
   _vao.unbind();
 }
 

@@ -8,7 +8,8 @@
 
 static float fov = 60, screen_aspect_ratio;
 static int move, strafe;
-static cube_drawer *cd;
+// static cube_drawer *cd;
+static sphere_drawer *sd;
 static entity *player;
 static camera *cam;
 static bsp *b;
@@ -19,14 +20,16 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  cd = new cube_drawer;
+  // cd = new cube_drawer;
+  sd = new sphere_drawer;
 
   player = new entity();
   cam = new camera(player);
 
   glEnable(GL_DEPTH_TEST);
-  glEnable(GL_CULL_FACE);
-  glCullFace(GL_FRONT);
+  // glEnable(GL_CULL_FACE);
+  // glFrontFace(GL_CW);
+  // glCullFace(GL_FRONT);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
@@ -117,13 +120,14 @@ static void draw(double alpha) {
   glm::mat4 projection = glm::perspective(glm::radians(fov), screen_aspect_ratio
           , 0.1f, 100.f)
     , view = cam->compute_view_mat(), model = player->compute_model_mat(alpha)
-    , cube_mvp = projection * view * model;
+    , ent_mvp = projection * view * model;
 
   if (update_frustum_culling)
     f.extract_planes(projection * view);
 
   b->draw(cam->pos, projection * view, f);
-  cd->draw(cube_mvp);
+  // cd->draw(ent_mvp);
+  sd->draw(projection * view);
 }
 
 static void cleanup() {
