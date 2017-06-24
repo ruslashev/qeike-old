@@ -24,8 +24,7 @@ void camera::update_view_angles(float xrel, float yrel) {
 }
 
 void camera::update_position(double dt, int move, int strafe) {
-  const float pitch_rad = to_radians(pitch)
-    , yaw_rad = to_radians(yaw)
+  const float pitch_rad = glm::radians(pitch), yaw_rad = glm::radians(yaw)
     , perp_yaw = yaw_rad + static_cast<float>(M_PI_2);
   float dist_move = 5.f * static_cast<float>(move * dt)
     , dist_strafe = 5.f * static_cast<float>(strafe * dt);
@@ -42,7 +41,7 @@ void camera::update_position(double dt, int move, int strafe) {
 
 glm::vec3 camera::compute_view_dir() const {
   // TODO called twice per frame, cache this?
-  const float pitch_rad = to_radians(pitch), yaw_rad = to_radians(yaw);
+  const float pitch_rad = glm::radians(pitch), yaw_rad = glm::radians(yaw);
   return glm::vec3(cos(yaw_rad) * cos(pitch_rad), sin(pitch_rad)
       , sin(yaw_rad) * cos(pitch_rad));
 }

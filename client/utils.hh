@@ -1,7 +1,5 @@
 #pragma once
 
-#include <fstream>
-#include <cmath>
 #include <cstdarg>
 #include <string>
 
@@ -45,14 +43,6 @@
 
 #define _glsl(X) "#version 120\n" #X
 
-inline float to_radians(const float &degrees) {
-  return (3.14159265359f * degrees) / 180.f;
-}
-
-inline float to_degrees(const float &radians) {
-  return (180.f * radians) / 3.14159265359f;
-}
-
 inline void print_packet(uint8_t *packet, size_t len
     , const char *msg = "packet") {
   printf("%s: ", msg);
@@ -63,29 +53,6 @@ inline void print_packet(uint8_t *packet, size_t len
     printf(" ");
   }
   printf("\n");
-}
-
-inline void dputs(std::string s) {
-  extern bool debug;
-  if (debug)
-    puts(s.c_str());
-}
-
-inline void dprintf(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-  extern bool debug;
-  if (debug)
-    vprintf(format, args);
-  va_end(args);
-}
-
-inline std::string trim(std::string str) {
-  std::string::size_type first = str.find_first_not_of(' ')
-    , last = str.find_last_not_of(' ');
-  if (first == std::string::npos)
-    return "";
-  return str.substr(first, (last - first + 1));
 }
 
 template <typename T>
