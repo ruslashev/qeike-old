@@ -1,35 +1,39 @@
-OBJS = $(patsubst ./%.cc,.objs/%.o, $(shell find . -type f -name '*.cc'))
 warnings = -Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-unused-variable \
 		   -Wduplicated-cond -Wdouble-promotion -Wnull-dereference -Wformat=2 \
 		   -Wdisabled-optimization -ftabstop=2 -Wsuggest-override -Wlogical-op
 flags = -ggdb3 -Og -std=c++0x -fno-rtti
 libraries = -lSDL2 -lGLEW -lGL
 CXX = g++
+BIN = qeike
+
+OBJS = $(patsubst ./%.cc,.objs/%.o, $(shell find . -type f -name '*.cc'))
+DEPS = $(OBJS:.o=.d)
 CXXFLAGS = $(warnings) $(flags)
 LDFLAGS = $(libraries)
 
-all: objdir qeike
-	./qeike
+$(shell mkdir -p .objs >/dev/null)
 
-.objs/%.o: %.cc
-	@echo "Compiling $<"
-	@$(CXX) -c -o $@ $< $(CXXFLAGS)
+all: $(BIN)
+	./$(BIN)
 
-qeike: $(OBJS)
+$(BIN): $(OBJS)
 	@echo "Linking to $@"
 	@$(CXX) -o $@ $^ $(LDFLAGS)
 
-valgrind: objdir qeike
-	valgrind --leak-check=full ./qeike
+.objs/%.o: %.cc
+	@echo "Compiling $<"
+	@$(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 
-callgrind: objdir qeike
-	@valgrind --tool=callgrind ./qeike
+valgrind: $(BIN)
+	valgrind --leak-check=full ./$(BIN)
+
+callgrind: $(BIN)
+	@valgrind --tool=callgrind ./$(BIN)
 	@kcachegrind callgrind.out.$!
 
-objdir:
-	@mkdir -p .objs
-
+.PHONY : clean
 clean:
-	@rm -f qeike
-	@rm -f $(OBJS)
+	@rm -f $(BIN) $(OBJS) $(DEPS)
+
+-include $(DEPS)
 
