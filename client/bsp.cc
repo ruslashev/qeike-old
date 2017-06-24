@@ -358,7 +358,7 @@ void bsp::draw(const glm::vec3 &position, const glm::mat4 &mvp, const frustum &f
 }
 
 void bsp::trace_sphere(trace_result *tr, const glm::vec3 &start
-    , const glm::vec3 &end, float radius) {
+      , const glm::vec3 &end, float radius) {
   trace_description t { trace_type::sphere, radius };
   _trace(tr, t, start, end);
 }

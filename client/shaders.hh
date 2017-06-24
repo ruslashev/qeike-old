@@ -64,7 +64,7 @@ static const char *map_frag = _glsl(
   }
 );
 
-static const char *cube_vert = _glsl(
+static const char *simple_vert = _glsl(
   attribute vec3 vertex_pos;
   uniform mat4 mvp;
   void main() {
@@ -72,7 +72,7 @@ static const char *cube_vert = _glsl(
   }
 );
 
-static const char *cube_frag = _glsl(
+static const char *simple_frag = _glsl(
   void main() {
     gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
   }

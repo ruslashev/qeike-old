@@ -40,12 +40,15 @@ void camera::update_position(double dt, int move, int strafe) {
     + sinf(perp_yaw) * dist_strafe;
 }
 
+glm::vec3 camera::compute_view_dir() const {
+  // TODO called twice per frame, cache this?
+  const float pitch_rad = to_radians(pitch), yaw_rad = to_radians(yaw);
+  return glm::vec3(cos(yaw_rad) * cos(pitch_rad), sin(pitch_rad)
+      , sin(yaw_rad) * cos(pitch_rad));
+}
+
 glm::mat4 camera::compute_view_mat() const {
-  const float pitch_rad = to_radians(pitch)
-    , yaw_rad = to_radians(yaw);
-  const glm::vec3 view_dir = glm::vec3(cos(yaw_rad) * cos(pitch_rad)
-      , sin(pitch_rad), sin(yaw_rad) * cos(pitch_rad))
-    , look_at = pos + view_dir;
+  glm::vec3 look_at = pos + compute_view_dir();
   return glm::lookAt(pos, look_at, glm::vec3(0, 1, 0));
 }
 

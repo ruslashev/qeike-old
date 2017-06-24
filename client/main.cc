@@ -79,6 +79,10 @@ static void update(double dt, double t, screen *s) {
     cam->update_position(dt, move, strafe);
     return;
   } else {
+    glm::vec3 pos = cam->pos, wish_pos = pos + cam->compute_view_dir() * 5.f * (float)dt;
+    trace_result tr;
+    b->trace_sphere(&tr, pos, wish_pos, 0.25f);
+    cam->pos = tr.end;
     // glm::vec3 old_pos = player->pos;
     // trace_result tr;
     // b->trace_sphere(&tr, old_pos, player->pos, 0.25f);

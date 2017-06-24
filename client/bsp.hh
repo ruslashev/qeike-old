@@ -5,16 +5,6 @@
 #include "frustum.hh"
 #include "ogl.hh"
 
-enum class trace_type {
-  ray,
-  sphere,
-};
-
-struct trace_description {
-  trace_type type;
-  float radius;
-};
-
 struct trace_result {
   glm::vec3 clip_plane_normal;
   float fraction;
@@ -105,6 +95,16 @@ class bsp {
     int n_vecs;
     int sz_vecs;
     std::vector<unsigned char> vecs;
+  };
+
+  enum class trace_type {
+    ray,
+    sphere,
+  };
+
+  struct trace_description {
+    trace_type type;
+    float radius;
   };
 
   std::vector<bsp_plane> _planes;
