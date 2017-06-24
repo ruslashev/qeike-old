@@ -27,9 +27,7 @@ static void graphics_load(screen *s) {
   cam = new camera(player);
 
   glEnable(GL_DEPTH_TEST);
-  // glEnable(GL_CULL_FACE);
-  // glFrontFace(GL_CW);
-  // glCullFace(GL_FRONT);
+  glEnable(GL_CULL_FACE);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 

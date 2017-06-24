@@ -168,6 +168,30 @@ void bsp::_load_file(const char *filename, float world_scale
   load_lump(ifs, &header, lump::faces, _faces);
   _visible_faces.resize(_faces.size(), 0);
 
+  _create_patches(tesselation_level);
+
+  for (size_t i = 0; i < _meshverts.size(); i += 3) {
+    if (i + 2 >= _meshverts.size()) {
+      warning("meshvert winding swap routine ended too soon");
+      break;
+    }
+    std::swap(_meshverts[i + 1], _meshverts[i + 2]);
+  }
+
+  load_lump(ifs, &header, lump::lightmaps, _lightmaps);
+  _lightmap_texture_ids.resize(_lightmaps.size());
+
+  ifs.seekg(header.direntries[(int)lump::visdata].offset);
+  ifs.read((char*)&_visdata.n_vecs, sizeof(int));
+  ifs.read((char*)&_visdata.sz_vecs, sizeof(int));
+  int size = _visdata.n_vecs * _visdata.sz_vecs;
+  _visdata.vecs.resize(size);
+  ifs.read((char*)&_visdata.vecs[0], size * sizeof(unsigned char));
+
+  ifs.close();
+}
+
+void bsp::_create_patches(int tesselation_level) {
   int patch_count = 0
     , patch_size = (tesselation_level + 1) * (tesselation_level + 1)
     , patch_index_size = tesselation_level * tesselation_level * 6;
@@ -194,18 +218,6 @@ void bsp::_load_file(const char *filename, float world_scale
     } else
       for (int j = 0; j < _faces[i].n_meshverts; ++j)
         _meshverts[_faces[i].meshvert + j].offset += _faces[i].vertex;
-
-  load_lump(ifs, &header, lump::lightmaps, _lightmaps);
-  _lightmap_texture_ids.resize(_lightmaps.size());
-
-  ifs.seekg(header.direntries[(int)lump::visdata].offset);
-  ifs.read((char*)&_visdata.n_vecs, sizeof(int));
-  ifs.read((char*)&_visdata.sz_vecs, sizeof(int));
-  int size = _visdata.n_vecs * _visdata.sz_vecs;
-  _visdata.vecs.resize(size);
-  ifs.read((char*)&_visdata.vecs[0], size * sizeof(unsigned char));
-
-  ifs.close();
 }
 
 void bsp::_tesselate(int tesselation_level, int control_offset

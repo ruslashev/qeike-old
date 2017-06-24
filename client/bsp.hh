@@ -129,6 +129,7 @@ class bsp {
 
   void _load_file(const char *filename, float world_scale
       , int tesselation_level);
+  void _create_patches(int tesselation_level);
   void _tesselate(int tesselation_level, int control_offset, int control_width
       , int voff, int eoff);
   int _find_leaf(glm::vec3 position);
