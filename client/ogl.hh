@@ -111,3 +111,14 @@ public:
   void draw(const glm::mat4 &mvp);
 };
 
+class axis_drawer {
+  vertex_array_object _vao;
+  array_buffer _vbo;
+  element_array_buffer _ebo;
+  shader_program _sp;
+  GLint _vertex_pos_attr, _vertex_color_attr, _mvp_mat_unif;
+public:
+  axis_drawer();
+  void draw(const glm::mat4 &mvp);
+};
+

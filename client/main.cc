@@ -8,8 +8,9 @@
 
 static float fov = 60, screen_aspect_ratio;
 static int move, strafe;
-// static cube_drawer *cd;
+static cube_drawer *cd;
 static sphere_drawer *sd;
+static axis_drawer *ad;
 static entity *player;
 static camera *cam;
 static bsp *b;
@@ -20,10 +21,11 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  // cd = new cube_drawer;
+  cd = new cube_drawer;
   sd = new sphere_drawer;
+  ad = new axis_drawer;
 
-  player = new entity();
+  player = new entity(glm::vec3(5, 5, 0));
   cam = new camera(player);
 
   glEnable(GL_DEPTH_TEST);
@@ -124,8 +126,9 @@ static void draw(double alpha) {
     f.extract_planes(projection * view);
 
   b->draw(cam->pos, projection * view, f);
-  // cd->draw(ent_mvp);
-  sd->draw(projection * view);
+  cd->draw(ent_mvp);
+  // sd->draw(projection * view);
+  ad->draw(projection * view);
 }
 
 static void cleanup() {

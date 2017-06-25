@@ -385,3 +385,46 @@ void sphere_drawer::draw(const glm::mat4 &mvp) {
   _vao.unbind();
 }
 
+axis_drawer::axis_drawer()
+  : _sp(shaders::colored_mesh_vert, shaders::colored_mesh_frag)
+  , _vertex_pos_attr(_sp.bind_attrib("vertex_pos"))
+  , _vertex_color_attr(_sp.bind_attrib("vertex_color"))
+  , _mvp_mat_unif(_sp.bind_uniform("mvp")) {
+  _vao.bind();
+  _vbo.bind();
+  _ebo.bind();
+  // vec3 vertex position and vec3 color
+  const std::vector<float> verts = {
+    0, 0, 0, 1, 0, 0,
+    0, 0, 0, 0, 1, 0,
+    0, 0, 0, 0, 0, 1,
+    1, 0, 0, 1, 0, 0,
+    0, 1, 0, 0, 1, 0,
+    0, 0, 1, 0, 0, 1
+  };
+  _vbo.upload(verts);
+  const std::vector<GLushort> elements = {
+    0, 3,
+    1, 4,
+    2, 5
+  };
+  _ebo.upload(elements);
+  glEnableVertexAttribArray(_vertex_pos_attr);
+  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+  glEnableVertexAttribArray(_vertex_color_attr);
+  glVertexAttribPointer(_vertex_color_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  _vao.unbind();
+  _vbo.unbind();
+  _ebo.unbind();
+  glDisableVertexAttribArray(_vertex_pos_attr);
+  glDisableVertexAttribArray(_vertex_color_attr);
+}
+
+void axis_drawer::draw(const glm::mat4 &mvp) {
+  _vao.bind();
+  _sp.use_this_prog();
+  glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
+  glDrawElements(GL_LINES, 6, GL_UNSIGNED_SHORT, 0);
+  _vao.unbind();
+}
+
