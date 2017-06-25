@@ -1,4 +1,5 @@
 qeike
 *.o
-client/mapz/*.bsp
+*.d
+*.bsp
 
