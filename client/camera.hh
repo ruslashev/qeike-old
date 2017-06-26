@@ -6,7 +6,7 @@
 class camera {
   entity *entity_attached_to;
 public:
-  glm::vec3 pos;
+  glm::vec3 pos, vel;
   float pitch, yaw, roll;
   camera(entity *n_entity_attached_to);
   void update_view_angles(float xrel, float yrel);

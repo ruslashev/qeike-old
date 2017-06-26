@@ -4,8 +4,11 @@
 
 camera::camera(entity *n_entity_attached_to)
   : entity_attached_to(n_entity_attached_to)
-  , pos(glm::vec3(0, 1, 5)) {
-  pitch = yaw = roll = 0;
+  , pitch(0)
+  , yaw(0)
+  , roll(0)
+  , pos(glm::vec3(-5, 2, 5))
+  , vel(glm::vec3(0, 0, 0)) {
 }
 
 void camera::update_view_angles(float xrel, float yrel) {
