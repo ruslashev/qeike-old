@@ -1,5 +1,6 @@
 #include "entity.hh"
 #include "math.hh"
+#include "config.hh"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
@@ -40,7 +41,6 @@ entity::entity()
 
 entity::entity(const glm::vec3 &n_position) {
   _current.position = n_position;
-  _current.momentum = glm::vec3(0, 0, -10);
   _current.recalculate();
   _previous = _current;
 }
@@ -51,10 +51,10 @@ void entity::update(double dt, double t) {
 }
 
 void entity::_integrate(physics_state &state, double dt, double t) {
-  physics_state_deriv a = _evaluate(state, t)
-    , b = _evaluate(state, t, dt * 0.5, a)
-    , c = _evaluate(state, t, dt * 0.5, b)
-    , d = _evaluate(state, t, dt, c);
+  physics_state_deriv a = _evaluate(state, t, 0, nullptr)
+    , b = _evaluate(state, t, dt * 0.5, &a)
+    , c = _evaluate(state, t, dt * 0.5, &b)
+    , d = _evaluate(state, t, dt, &c);
 
   float dtf = (float)dt; // temporary
   state.position += 1.0f/6.0f * dtf * (a.velocity + 2.0f * (b.velocity
@@ -69,24 +69,18 @@ void entity::_integrate(physics_state &state, double dt, double t) {
   state.recalculate();
 }
 
-physics_state_deriv entity::_evaluate(const physics_state &state, double t) {
-  physics_state_deriv output;
-  output.velocity = state.velocity;
-  output.spin = state.spin;
-  _forces(state, t, output.force, output.torque);
-  return output;
-}
-
+// Evaluate physics_state_deriv at future time t + dt using the specified set
+// of derivatives to advance dt seconds from the specified physics state.
 physics_state_deriv entity::_evaluate(physics_state state, double t, double dt
-    , const physics_state_deriv &derivative) {
-  // Evaluate physics_state_deriv at future time t + dt using the specified set
-  // of derivatives to advance dt seconds from the specified physics state.
-  float dtf = (float)dt;
-  state.position += derivative.velocity * dtf;
-  state.momentum += derivative.force * dtf;
-  state.orientation += derivative.spin * dtf;
-  state.angular_momentum += derivative.torque * dtf;
-  state.recalculate();
+    , const physics_state_deriv *derivative) {
+  if (derivative) {
+    float dtf = (float)dt;
+    state.position += derivative->velocity * dtf;
+    state.momentum += derivative->force * dtf;
+    state.orientation += derivative->spin * dtf;
+    state.angular_momentum += derivative->torque * dtf;
+    state.recalculate();
+  }
 
   physics_state_deriv output;
   output.velocity = state.velocity;
@@ -97,22 +91,16 @@ physics_state_deriv entity::_evaluate(physics_state state, double t, double dt
 
 void entity::_forces(const physics_state &state, double t, glm::vec3 &force
     , glm::vec3 &torque) {
-  force = -10.f * state.position;
-
-  force.x += 10.f * (float)glm::sin((float)t * 0.9f + 0.5f);
-  force.y += 11.f * (float)glm::sin((float)t * 0.5f + 0.4f);
-  force.z += 12.f * (float)glm::sin((float)t * 0.7f + 0.9f);
-
   torque.x = 1.0f * (float)glm::sin((float)t * 0.9f + 0.5f);
   torque.y = 1.1f * (float)glm::sin((float)t * 0.5f + 0.4f);
   torque.z = 1.2f * (float)glm::sin((float)t * 0.7f + 0.9f);
-
   torque -= 0.2f * state.angular_velocity;
 }
 
 glm::mat4 entity::compute_model_mat(float alpha) const {
   physics_state state = interpolate(_previous, _current, alpha);
-  glm::mat4 id = glm::mat4(), translation = glm::translate(id, state.position);
-  return translation * toMat4(state.orientation);
+  glm::mat4 id = glm::mat4(), translation = glm::translate(id, state.position)
+    , rotation = toMat4(state.orientation);
+  return translation * rotation;
 }
 

@@ -31,9 +31,8 @@ struct physics_state_deriv {
 class entity {
   physics_state _previous, _current;
   void _integrate(physics_state &state, double dt, double t);
-  physics_state_deriv _evaluate(const physics_state &state, double t);
   physics_state_deriv _evaluate(physics_state state, double t, double dt
-      , const physics_state_deriv &derivative);
+      , const physics_state_deriv *derivative);
   void _forces(const physics_state &state, double t, glm::vec3 &force
       , glm::vec3 &torque);
 public:
