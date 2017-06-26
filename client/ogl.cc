@@ -345,7 +345,8 @@ void sphere_drawer::_make_mesh(std::vector<glm::vec3> *vertices
 
   for (const glm::vec3 &v : m.vertices) {
     glm::vec3 nv = glm::normalize(v);
-    // nv *= expOut(0.95, 1., -glm::simplex(nv * 5.f));
+    // if (noise)
+    //   nv *= expOut(0.95, 1., -glm::simplex(nv * 5.f));
     vertices->push_back(nv);
   }
 
@@ -410,9 +411,11 @@ axis_drawer::axis_drawer()
   };
   _ebo.upload(elements);
   glEnableVertexAttribArray(_vertex_pos_attr);
-  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), 0);
+  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
+      , 6 * sizeof(float), 0);
   glEnableVertexAttribArray(_vertex_color_attr);
-  glVertexAttribPointer(_vertex_color_attr, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glVertexAttribPointer(_vertex_color_attr, 3, GL_FLOAT, GL_FALSE
+      , 6 * sizeof(float), (void*)(3 * sizeof(float)));
   _vao.unbind();
   _vbo.unbind();
   _ebo.unbind();
