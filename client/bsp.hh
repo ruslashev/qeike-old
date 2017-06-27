@@ -24,8 +24,8 @@ class bsp {
     int plane;
     int front;
     int back;
-    glm::ivec3 mins;
-    glm::ivec3 maxs;
+    glm::vec3 mins;
+    glm::vec3 maxs;
   };
 
   struct bsp_leaf {
@@ -43,19 +43,17 @@ class bsp {
     int face;
   };
 
-  struct bsp_leafbrush {
-    int brush;
-  };
+  typedef int bsp_leafbrush;
 
   struct bsp_brush {
     int brushside;
     int n_brushsides;
-    int texture;
+    int shader;
   };
 
   struct bsp_brushside {
     int plane;
-    int texture;
+    int shader;
   };
 
   struct bsp_vertex {
@@ -112,6 +110,7 @@ class bsp {
   };
 
   struct bsp_patchcollide {
+    bool valid;
     glm::vec3 bounds[2];
     int n_planes; // surface planes plus edge planes
     bsp_patch_plane *planes;
@@ -138,9 +137,10 @@ class bsp {
   };
 
   struct bsp_winding {
-    int numpoints;
-    glm::vec3 p[4]; //variable sized
+    std::vector<glm::vec3> p;
+    int numpoints; // can be less than p.size()
 
+    bsp_winding(int size);
     void bounds(glm::vec3 & mins, glm::vec3 & maxs);
   };
 
@@ -224,6 +224,8 @@ class bsp {
       , const glm::vec3 &input_end);
   void _trace_leaf(trace_result *tr, const trace_description &td
       , const bsp_leaf *l, const glm::vec3 &start, const glm::vec3 &end);
+  void _trace_patch(trace_result *tr, const trace_description &td, bsp_patchcollide *p, glm::vec3 input_start, glm::vec3 input_end);
+  bool _check_facet_plane(glm::vec3 plane, glm::vec3 start, glm::vec3 end, float *enterFrac, float *leaveFrac, bool *hit);
 public:
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();

@@ -34,7 +34,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new bsp("mapz/ztn3tourney1.bsp", 32.f, 10);
+  b = new bsp("mapz/q3dm6.bsp", 32.f, 10);
 
   s->lock_mouse();
 }
@@ -104,24 +104,18 @@ static void update(double dt, double t, screen *s) {
       } else if (movement_switch == 2) {
         // Q3 fixed movement
         // TODO: bugful
-        puts("Q3 fixed movement");
+        // puts("Q3 fixed movement");
         glm::vec3 wish_velocity = wish_dir * wish_speed
-          , push_dir = glm::normalize(wish_velocity - prev_velocity);
+          , push_vec = wish_velocity - prev_velocity;
+        if (glm::length(push_vec) < 0.1f)
+          return prev_velocity;
+        glm::vec3 push_dir = glm::normalize(push_vec);
         float push_len = glm::length(push_dir)
           , can_push = accel * dtf * wish_speed;
         if (can_push > push_len)
           can_push = push_len;
         return prev_velocity + push_dir * can_push;
       } else {
-        // Q3 fixed movement article like
-        puts("Q3 fixed movement article like");
-        glm::vec3 wish_velocity = wish_dir * wish_speed
-          , push_dir = glm::normalize(wish_velocity - prev_velocity);
-        float push_len = glm::length(push_dir)
-          , can_push = accel * dtf;
-        if (can_push > push_len)
-          can_push = push_len;
-        return prev_velocity + push_dir * can_push;
       }
     };
 
