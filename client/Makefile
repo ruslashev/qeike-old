@@ -24,6 +24,9 @@ $(BIN): $(OBJS)
 	@echo "Compiling $<"
 	@$(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 
+gdb: $(BIN)
+	gdb $(BIN)
+
 valgrind: $(BIN)
 	valgrind --leak-check=full ./$(BIN)
 
