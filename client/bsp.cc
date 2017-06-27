@@ -4,7 +4,13 @@
 #include <fstream>
 #include <glm/gtc/type_ptr.hpp>
 
-const float feps = 1e-4f, surface_clip_eps = 0.125f;
+const float feps = 1e-4f, surface_clip_eps = 0.125f
+    , grid_wrap_point_epsilon = 0.1f, subdivide_distance = 4
+    , point_epsilon = 0.1f, plane_eps = 0.000001f, plane_tri_eps = 0.1f
+    , normal_eps = 0.0001f, dist_eps = 0.02f;
+
+const int max_patch_verts = 2048, bogus_range = 65535
+    , max_points_on_winding = 96, max_map_bounds = 65535;
 
 bsp::bsp_plane::bsp_plane()
   : normal({ 0.f, 0.f, 0.f })
@@ -25,23 +31,1102 @@ bsp::bsp_vertex bsp::bsp_vertex::operator*(float factor) const {
   return res;
 }
 
+void bsp::bsp_patchcollide::clear_bounds() {
+  bounds[0] = glm::vec3(99999);
+  bounds[1] = glm::vec3(-99999);
+}
+
+void bsp::bsp_patchcollide::add_point_to_bounds(const glm::vec3 &v) {
+  int		i;
+  float	val;
+
+  val = v.x;
+  if (val < bounds[0].x)
+    bounds[0].x = val;
+  if (val > bounds[1].x)
+    bounds[1].x = val;
+
+  val = v.y;
+  if (val < bounds[0].y)
+    bounds[0].y = val;
+  if (val > bounds[1].y)
+    bounds[1].y = val;
+
+  val = v.z;
+  if (val < bounds[0].z)
+    bounds[0].z = val;
+  if (val > bounds[1].z)
+    bounds[1].z = val;
+}
+
+void bsp::bsp_grid::set_wrap_width() {
+  int i, j;
+  for (i = 0 ; i < height ; i++ ) {
+    for (j = 0 ; j < 3 ; j++ ) {
+      float d = points[0][i][j] - points[width-1][i][j];
+      if ( d < -grid_wrap_point_epsilon || d > grid_wrap_point_epsilon ) {
+        break;
+      }
+    }
+    if ( j != 3 ) {
+      break;
+    }
+  }
+  if ( i == height ) {
+    wrap_width = true;
+  } else {
+    wrap_width = false;
+  }
+}
+
+// needs_subdivision: returns true if the given quadratic curve is not flat
+// enough for collision detection purposes
+static bool needs_subdivision(glm::vec3 a, glm::vec3 b, glm::vec3 c) {
+  glm::vec3 cmid;
+  glm::vec3 lmid;
+  glm::vec3 delta;
+  float		dist;
+  int			i;
+
+  // linear midpoint
+  lmid = 0.5f*(a + c);
+
+  // exact curve midpoint
+  cmid = 0.5f * ( 0.5f*(a + b) + 0.5f*(b + c) );
+
+  // see if the curve is far enough away from the linear mid
+  delta = cmid - lmid;
+  dist = glm::length( delta );
+
+  return dist >= subdivide_distance;
+}
+
+/// subdivide: a, b, and c are control points.
+/// the subdivided sequence will be: a, out1, out2, out3, c
+static void subdivide( const glm::vec3 & a, const glm::vec3 & b
+    , const glm::vec3 & c, glm::vec3 & out1, glm::vec3 & out2
+    , glm::vec3 & out3 ) {
+  out1 = 0.5f * (a + b);
+  out3 = 0.5f * (b + c);
+  out2 = 0.5f * (out1 + out3);
+}
+
+static bool compare_points( glm::vec3 a, glm::vec3 b ) {
+  float		d;
+  d = a.x - b.x;
+  if ( d < -point_epsilon || d > point_epsilon ) {
+    return false;
+  }
+  d = a.y - b.y;
+  if ( d < -point_epsilon || d > point_epsilon ) {
+    return false;
+  }
+  d = a.z - b.z;
+  if ( d < -point_epsilon || d > point_epsilon ) {
+    return false;
+  }
+  return true;
+}
+
+void bsp::bsp_grid::subdivide_columns() {
+  int		i, j, k;
+
+  for ( i = 0 ; i < width - 2 ;  ) {
+    // points[i][x] is an interpolating control point
+    // points[i+1][x] is an aproximating control point
+    // points[i+2][x] is an interpolating control point
+
+    // first see if we can collapse the aproximating collumn away
+    for ( j = 0 ; j < height ; j++ ) {
+      if ( needs_subdivision( points[i][j], points[i+1][j], points[i+2][j] ) ) {
+        break;
+      }
+    }
+    if ( j == height ) {
+      // all of the points were close enough to the linear midpoints
+      // that we can collapse the entire column away
+      for ( j = 0 ; j < height ; j++ ) {
+        // remove the column
+        for ( k = i + 2 ; k < width ; k++ ) {
+          points[k-1][j] = points[k][j];
+        }
+      }
+
+      width--;
+
+      // go to the next curve segment
+      i++;
+      continue;
+    }
+
+    //
+    // we need to subdivide the curve
+    //
+    for ( j = 0 ; j < height ; j++ ) {
+      glm::vec3	prev, mid, next;
+
+      // save the control points now
+      prev = points[i][j];
+      mid = points[i+1][j];
+      next = points[i+2][j];
+
+      // make room for two additional columns in the grid
+      // columns i+1 will be replaced, column i+2 will become i+4
+      // i+1, i+2, and i+3 will be generated
+      for ( k = width - 1 ; k > i + 1 ; k-- ) {
+        points[k+2][j] = points[k][j];
+      }
+
+      // generate the subdivided points
+      subdivide( prev, mid, next, points[i+1][j], points[i+2][j], points[i+3][j] );
+    }
+
+    width += 2;
+
+    // the new aproximating point at i+1 may need to be removed
+    // or subdivided farther, so don't advance i
+  }
+}
+
+void bsp::bsp_grid::remove_degenerate_columns() {
+  int		i, j, k;
+
+  for ( i = 0 ; i < width - 1 ; i++ ) {
+    for ( j = 0 ; j < height ; j++ ) {
+      if ( !compare_points( points[i][j], points[i+1][j] ) ) {
+        break;
+      }
+    }
+
+    if ( j != height ) {
+      continue;	// not degenerate
+    }
+
+    for ( j = 0 ; j < height ; j++ ) {
+      // remove the column
+      for ( k = i + 2 ; k < width ; k++ ) {
+        points[k-1][j] =  points[k][j];
+      }
+    }
+    width--;
+
+    // check against the next column
+    i--;
+  }
+}
+
+void bsp::bsp_grid::transpose() {
+  int			i, j, l;
+  glm::vec3 temp;
+  bool	temp_wrap;
+
+  if ( width > height ) {
+    for ( i = 0 ; i < height ; i++ ) {
+      for ( j = i + 1 ; j < width ; j++ ) {
+        if ( j < height ) {
+          // TODO: std::swap
+          // swap the value
+          temp =  points[i][j];
+          points[i][j] =  points[j][i];
+          points[j][i] =  temp;
+        } else {
+          // just copy
+          points[i][j] =  points[j][i];
+        }
+      }
+    }
+  } else {
+    for ( i = 0 ; i < width ; i++ ) {
+      for ( j = i + 1 ; j < height ; j++ ) {
+        if ( j < width ) {
+          // swap the value
+          temp =  points[j][i];
+          points[j][i] =  points[i][j];
+          points[i][j] =  temp;
+        } else {
+          // just copy
+          points[j][i] =  points[i][j];
+        }
+      }
+    }
+  }
+
+  l = width;
+  width = height;
+  height = l;
+
+  temp_wrap = wrap_width;
+  wrap_width = wrap_height;
+  wrap_height = temp_wrap;
+}
+
+static bool plane_from_points( glm::vec4 &plane, glm::vec3 a, glm::vec3 b, glm::vec3 c ) {
+  glm::vec3	d1, d2;
+  d1 = b - a;
+  d2 = c - a;
+  glm::vec3 tplane = glm::cross(d2, d1);
+  if (glm::length(tplane) < plane_eps)
+    return false;
+  tplane = glm::normalize(tplane);
+  plane.x = tplane.x;
+  plane.y = tplane.y;
+  plane.z = tplane.z;
+  plane.w = glm::dot(a, tplane);
+  return true;
+}
+
+static int sign_bits_for_normal( glm::vec3 normal ) {
+  int bits = 0;
+  if (normal.x < 0)
+    bits |= 1<<0;
+  if (normal.y < 0)
+    bits |= 1<<1;
+  if (normal.z < 0)
+    bits |= 1<<2;
+  return bits;
+}
+
+int bsp::find_plane( glm::vec3 p1, glm::vec3 p2, glm::vec3 p3 ) {
+  glm::vec4	plane;
+  int		i;
+  float	d;
+
+  if ( !plane_from_points( plane, p1, p2, p3 ) ) {
+    return -1;
+  }
+
+  // see if the points are close enough to an existing plane
+  for ( i = 0 ; i < numPlanes ; i++ ) {
+    if ( glm::dot( glm::vec3(plane), glm::vec3(planes[i].plane) ) < 0 ) {
+      continue;	// allow backwards planes?
+    }
+
+    glm::vec3 comp_plane = glm::vec3(planes[i].plane);
+
+    d = glm::dot( p1, comp_plane ) - planes[i].plane[3];
+    if ( d < -plane_tri_eps || d > plane_tri_eps ) {
+      continue;
+    }
+
+    d = glm::dot( p2, comp_plane ) - planes[i].plane[3];
+    if ( d < -plane_tri_eps || d > plane_tri_eps ) {
+      continue;
+    }
+
+    d = glm::dot( p3, comp_plane ) - planes[i].plane[3];
+    if ( d < -plane_tri_eps || d > plane_tri_eps ) {
+      continue;
+    }
+
+    // found it
+    return i;
+  }
+
+  // add a new plane
+  assertf(numPlanes != MAX_PATCH_PLANES, "things that shouldn't happen for 400");
+
+  planes[numPlanes].plane = plane;
+  planes[numPlanes].sign_bits = sign_bits_for_normal( plane );
+
+  numPlanes++;
+
+  return numPlanes-1;
+}
+
+static int grid_plane( int gridPlanes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j, int tri ) {
+  int		p;
+  p = gridPlanes[i][j][tri];
+  if ( p != -1 ) {
+    return p;
+  }
+  p = gridPlanes[i][j][!tri];
+  if ( p != -1 ) {
+    return p;
+  }
+  // should never happen
+  warning_ln("grid plane unresolvable\n" );
+  return -1;
+}
+
+int bsp::_edge_plane_for_num(bsp_grid *grid, int gridPlanes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j, int k ) {
+  glm::vec3	p1, p2;
+  glm::vec3		up;
+  int			p;
+
+  switch ( k ) {
+    case 0:	// top border
+      p1 = grid->points[i][j];
+      p2 = grid->points[i+1][j];
+      p = grid_plane( gridPlanes, i, j, 0 );
+      up =  p1 +  glm::vec3(planes[ p ].plane) *  4.f;
+      return find_plane( p1, p2, up );
+
+    case 2:	// bottom border
+      p1 = grid->points[i][j+1];
+      p2 = grid->points[i+1][j+1];
+      p = grid_plane( gridPlanes, i, j, 1 );
+      up =  p1 +  glm::vec3(planes[ p ].plane) *  4.f;
+      return find_plane( p2, p1, up );
+
+    case 3: // left border
+      p1 = grid->points[i][j];
+      p2 = grid->points[i][j+1];
+      p = grid_plane( gridPlanes, i, j, 1 );
+      up =  p1 +  glm::vec3(planes[ p ].plane) *  4.f;
+      return find_plane( p2, p1, up );
+
+    case 1:	// right border
+      p1 = grid->points[i+1][j];
+      p2 = grid->points[i+1][j+1];
+      p = grid_plane( gridPlanes, i, j, 0 );
+      up =  p1 +  glm::vec3(planes[ p ].plane) *  4.f;
+      return find_plane( p1, p2, up );
+
+    case 4:	// diagonal out of triangle 0
+      p1 = grid->points[i+1][j+1];
+      p2 = grid->points[i][j];
+      p = grid_plane( gridPlanes, i, j, 0 );
+      up =  p1 +  glm::vec3(planes[ p ].plane) *  4.f;
+      return find_plane( p1, p2, up );
+
+    case 5:	// diagonal out of triangle 1
+      p1 = grid->points[i][j];
+      p2 = grid->points[i+1][j+1];
+      p = grid_plane( gridPlanes, i, j, 1 );
+      up =  p1 +  glm::vec3(planes[ p ].plane) *  4.f;
+      return find_plane( p1, p2, up );
+    default:
+      warning_ln("bad k");
+      return -1;
+  }
+}
+
+#define	SIDE_FRONT		0
+#define	SIDE_ON			2
+#define	SIDE_BACK		1
+#define	SIDE_CROSS		-2
+
+int bsp::point_on_plane_side( glm::vec3 p, int planeNum ) {
+  glm::vec4 plane;
+  float	d;
+
+  if ( planeNum == -1 ) {
+    return SIDE_ON;
+  }
+  plane = planes[ planeNum ].plane;
+
+  d = glm::dot( p, glm::vec3(plane) ) - plane[3];
+
+  if ( d > plane_tri_eps ) {
+    return SIDE_FRONT;
+  }
+
+  if ( d < -plane_tri_eps ) {
+    return SIDE_BACK;
+  }
+
+  return SIDE_ON;
+}
+
+void bsp::set_border_inward( bsp_facet *facet, bsp_grid *grid, int gridPlanes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j, int which ) {
+  int		k, l;
+  glm::vec3 points[4];
+  int		numPoints;
+
+  switch ( which ) {
+    case -1:
+      points[0] = grid->points[i][j];
+      points[1] = grid->points[i+1][j];
+      points[2] = grid->points[i+1][j+1];
+      points[3] = grid->points[i][j+1];
+      numPoints = 4;
+      break;
+    case 0:
+      points[0] = grid->points[i][j];
+      points[1] = grid->points[i+1][j];
+      points[2] = grid->points[i+1][j+1];
+      numPoints = 3;
+      break;
+    case 1:
+      points[0] = grid->points[i+1][j+1];
+      points[1] = grid->points[i][j+1];
+      points[2] = grid->points[i][j];
+      numPoints = 3;
+      break;
+    default:
+      warning_ln("bad parameter");
+      numPoints = 0;
+      break;
+  }
+
+  for ( k = 0 ; k < facet->n_borders ; k++ ) {
+    int		front, back;
+
+    front = 0;
+    back = 0;
+
+    for ( l = 0 ; l < numPoints ; l++ ) {
+      int		side;
+
+      side = point_on_plane_side( points[l], facet->border_planes[k] );
+      if ( side == SIDE_FRONT ) {
+        front++;
+      } if ( side == SIDE_BACK ) {
+        back++;
+      }
+    }
+
+    if ( front && !back ) {
+      facet->border_inward[k] = true;
+    } else if ( back && !front ) {
+      facet->border_inward[k] = false;
+    } else if ( !front && !back ) {
+      // flat side border
+      facet->border_planes[k] = -1;
+    } else {
+      // bisecting side border
+      warning_ln( "CM_SetBorderInward: mixed plane sides\n" );
+      facet->border_inward[k] = false;
+    }
+  }
+}
+
+bsp::bsp_winding *bsp::base_winding_for_plane (glm::vec3 normal, float dist)
+{
+	int		i, x;
+	float	max, v;
+  glm::vec3	org, vright, vup;
+	bsp_winding	*w = new bsp_winding;
+	
+// find the major axis
+
+	max = -bogus_range;
+	x = -1;
+	for (i=0 ; i<3; i++)
+	{
+		v = fabs(normal[i]);
+		if (v > max)
+		{
+			x = i;
+			max = v;
+		}
+	}
+	assertf (x!=-1, "no axis found");
+		
+  vup = glm::vec3(0, 0, 0);
+	switch (x)
+	{
+	case 0:
+	case 1:
+		vup[2] = 1;
+		break;		
+	case 2:
+		vup[0] = 1;
+		break;		
+	}
+
+	v = glm::dot (vup, normal);
+  vup += normal *  (-v);
+  vup = glm::normalize(vup);
+		
+  org = normal * dist;
+	
+  vright = glm::cross(vup, normal);
+	
+  vup *= bogus_range;
+  vright *= bogus_range;
+
+// project a really big	axis aligned box onto the plane
+	
+  w->p[0] = org - vright;
+  w->p[0] += vup;
+
+  w->p[1] = org + vright;
+  w->p[1] += vup;
+
+  w->p[2] = org + vright;
+  w->p[2] -= vup;
+
+  w->p[3] = org - vright;
+  w->p[3] -= vup;
+	
+	w->numpoints = 4;
+	
+	return w;	
+}
+
+void bsp::chop_winding_in_place (bsp_winding **inout, glm::vec3 normal, float dist, float epsilon)
+{
+  bsp_winding *in;
+  float	dists[max_points_on_winding+4];
+  int sides[max_points_on_winding+4];
+  int counts[3];
+  //MrElusive: DOH can't use statics when unsing multithreading!!!
+  float dot;		// VC 4.2 optimizer bug if not static
+  int i, j;
+  glm::vec3 p1, p2;
+  glm::vec3 mid;
+  bsp_winding *f;
+  int maxpts;
+
+  in = *inout;
+  counts[0] = counts[1] = counts[2] = 0;
+
+  // determine sides for each point
+  for (i=0 ; i<in->numpoints ; i++)
+  {
+    dot = glm::dot (in->p[i], normal);
+    dot -= dist;
+    dists[i] = dot;
+    if (dot > epsilon)
+      sides[i] = SIDE_FRONT;
+    else if (dot < -epsilon)
+      sides[i] = SIDE_BACK;
+    else
+    {
+      sides[i] = SIDE_ON;
+    }
+    counts[sides[i]]++;
+  }
+  sides[i] = sides[0];
+  dists[i] = dists[0];
+
+  if (!counts[0])
+  {
+    // FreeWinding (in);
+    *inout = NULL;
+    return;
+  }
+  if (!counts[1])
+    return;		// inout stays the same
+
+  maxpts = in->numpoints+4;	// cant use counts[0]+2 because
+  // of fp grouping errors
+
+  f = new bsp_winding;
+  f->numpoints = maxpts;
+
+  for (i=0 ; i<in->numpoints ; i++)
+  {
+    p1 = in->p[i];
+
+    if (sides[i] == SIDE_ON)
+    {
+      f->p[f->numpoints] = p1;
+      f->numpoints++;
+      continue;
+    }
+
+    if (sides[i] == SIDE_FRONT)
+    {
+      f->p[f->numpoints] = p1;
+      f->numpoints++;
+    }
+
+    if (sides[i+1] == SIDE_ON || sides[i+1] == sides[i])
+      continue;
+
+    // generate a split point
+    p2 = in->p[(i+1)%in->numpoints];
+
+    dot = dists[i] / (dists[i]-dists[i+1]);
+    for (j=0 ; j<3 ; j++)
+    {	// avoid round off error when possible
+      if (normal[j] == 1)
+        mid[j] = dist;
+      else if (normal[j] == -1)
+        mid[j] = -dist;
+      else
+        mid[j] = p1[j] + dot*(p2[j]-p1[j]);
+    }
+
+    f->p[f->numpoints] = mid;
+    f->numpoints++;
+  }
+
+  assertf(f->numpoints <= maxpts, "points exceeded estimate");
+  assertf(f->numpoints <= max_points_on_winding, "max_points_on_winding");
+
+  // FreeWinding (in);
+  *inout = f;
+}
+
+void bsp::bsp_winding::bounds (glm::vec3 & mins, glm::vec3 & maxs)
+{
+	float	v;
+	int		i,j;
+
+	mins[0] = mins[1] = mins[2] = 99999;
+	maxs[0] = maxs[1] = maxs[2] = -99999;
+
+	for (i=0 ; i<numpoints ; i++)
+	{
+		for (j=0 ; j<3 ; j++)
+		{
+			v = p[i][j];
+			if (v < mins[j])
+				mins[j] = v;
+			if (v > maxs[j])
+				maxs[j] = v;
+		}
+	}
+}
+
+bool bsp::validate_facet( bsp_facet *facet ) {
+  glm::vec4		plane;
+  int			j;
+  bsp_winding	*w;
+  glm::vec3		bounds[2];
+
+  if ( facet->surface_plane == -1 ) {
+    return false;
+  }
+
+  plane = planes[ facet->surface_plane ].plane;
+  w = base_winding_for_plane( plane,  plane[3] );
+  for ( j = 0 ; j < facet->n_borders && w ; j++ ) {
+    if ( facet->border_planes[j] == -1 ) {
+      return false;
+    }
+    plane = planes[ facet->border_planes[j] ].plane;
+    if ( !facet->border_inward[j] ) {
+      plane = -plane;
+      plane[3] = -plane[3];
+    }
+    chop_winding_in_place( &w, plane, plane[3], 0.1f );
+  }
+
+  if ( !w ) {
+    return false;		// winding was completely chopped away
+  }
+
+  // see if the facet is unreasonably large
+  w->bounds(bounds[0], bounds[1] );
+  // FreeWinding( w );
+
+  for ( j = 0 ; j < 3 ; j++ ) {
+    if ( bounds[1][j] - bounds[0][j] > max_map_bounds ) {
+      return false;		// we must be missing a plane
+    }
+    if ( bounds[0][j] >= max_map_bounds ) {
+      return false;
+    }
+    if ( bounds[1][j] <= -max_map_bounds ) {
+      return false;
+    }
+  }
+  return true;		// winding is fine
+}
+
+int bsp::plane_equal(bsp_patch_plane *p, glm::vec4 plane, int *flipped) {
+  glm::vec4 invplane;
+
+  if (
+      fabs(p->plane[0] - plane[0]) < normal_eps
+      && fabs(p->plane[1] - plane[1]) < normal_eps
+      && fabs(p->plane[2] - plane[2]) < normal_eps
+      && fabs(p->plane[3] - plane[3]) < dist_eps)
+  {
+    *flipped = false;
+    return true;
+  }
+
+  invplane = -plane;
+  invplane[3] = -plane[3];
+
+  if (
+      fabs(p->plane[0] - invplane[0]) < normal_eps
+      && fabs(p->plane[1] - invplane[1]) < normal_eps
+      && fabs(p->plane[2] - invplane[2]) < normal_eps
+      && fabs(p->plane[3] - invplane[3]) < dist_eps)
+  {
+    *flipped = true;
+    return true;
+  }
+
+  return false;
+}
+
+static void snap_vector(glm::vec3 &normal) {
+  int		i;
+
+  for (i=0 ; i<3 ; i++)
+  {
+    if ( fabs(normal[i] - 1) < normal_eps )
+    {
+      normal = glm::vec3(0);
+      normal[i] = 1;
+      break;
+    }
+    if ( fabs(normal[i] - -1) < normal_eps )
+    {
+      normal = glm::vec3(0);
+      normal[i] = -1;
+      break;
+    }
+  }
+}
+
+int bsp::find_plane2(glm::vec4 plane, int *flipped) {
+  int i;
+
+  // see if the points are close enough to an existing plane
+  for ( i = 0 ; i < numPlanes ; i++ ) {
+    if (plane_equal(&planes[i], plane, flipped)) return i;
+  }
+
+  // add a new plane
+  assertf ( numPlanes != MAX_PATCH_PLANES, "MAX_PATCH_PLANES");
+
+  planes[numPlanes].plane = plane;
+  planes[numPlanes].sign_bits = sign_bits_for_normal( plane );
+
+  numPlanes++;
+
+  *flipped = false;
+
+  return numPlanes-1;
+}
+
+void bsp::add_facet_bevels( bsp_facet *facet ) {
+  int i, j, k, l;
+  int axis, dir, order, flipped;
+  float d;
+  glm::vec4 plane, newplane;
+  bsp_winding *w, *w2;
+  glm::vec3 mins, maxs, vec, vec2;
+
+  plane = planes[ facet->surface_plane ].plane;
+
+  w = base_winding_for_plane( plane,  plane[3] );
+  for ( j = 0 ; j < facet->n_borders && w ; j++ ) {
+    if (facet->border_planes[j] == facet->surface_plane) continue;
+    plane = planes[ facet->border_planes[j] ].plane;
+
+    if ( !facet->border_inward[j] ) {
+      plane = -plane;
+      plane[3] = -plane[3];
+    }
+
+    chop_winding_in_place( &w, plane, plane[3], 0.1f );
+  }
+  if ( !w ) {
+    return;
+  }
+
+  w->bounds(mins, maxs);
+
+  // add the axial planes
+  order = 0;
+  for ( axis = 0 ; axis < 3 ; axis++ )
+  {
+    for ( dir = -1 ; dir <= 1 ; dir += 2, order++ )
+    {
+      plane = glm::vec4(0, 0, 0, plane.w);
+      plane[axis] = dir;
+      if (dir == 1) {
+        plane[3] = maxs[axis];
+      }
+      else {
+        plane[3] = -mins[axis];
+      }
+      //if it's the surface plane
+      if (plane_equal(&planes[facet->surface_plane], plane, &flipped)) {
+        continue;
+      }
+      // see if the plane is allready present
+      for ( i = 0 ; i < facet->n_borders ; i++ ) {
+        if (plane_equal(&planes[facet->border_planes[i]], plane, &flipped))
+          break;
+      }
+
+      if ( i == facet->n_borders ) {
+        if (facet->n_borders > 4 + 6 + 16)
+          warning_ln("too many bevels");
+        facet->border_planes[facet->n_borders] = find_plane2(plane, &flipped);
+        facet->border_no_adjust[facet->n_borders] = 0;
+        facet->border_inward[facet->n_borders] = flipped;
+        facet->n_borders++;
+      }
+    }
+  }
+  //
+  // add the edge bevels
+  //
+  // test the non-axial plane edges
+  for ( j = 0 ; j < w->numpoints ; j++ )
+  {
+    k = (j+1)%w->numpoints;
+    vec = w->p[j] - w->p[k];
+    //if it's a degenerate edge
+    if (glm::length (vec) < 0.5)
+      continue;
+    vec = glm::normalize(vec);
+    snap_vector(vec);
+    for ( k = 0; k < 3 ; k++ )
+      if ( vec[k] == -1 || vec[k] == 1 )
+        break;	// axial
+    if ( k < 3 )
+      continue;	// only test non-axial edges
+
+    // try the six possible slanted axials from this edge
+    for ( axis = 0 ; axis < 3 ; axis++ )
+    {
+      for ( dir = -1 ; dir <= 1 ; dir += 2 )
+      {
+        // construct a plane
+        vec2 = glm::vec3(0);
+        vec2[axis] = dir;
+        plane = glm::vec4(glm::cross(vec, vec2), plane.w);
+        if (glm::length (plane) < 0.5)
+          continue;
+        plane = glm::normalize(plane);
+        plane[3] = glm::dot (w->p[j], glm::vec3(plane));
+
+        // if all the points of the facet winding are
+        // behind this plane, it is a proper edge bevel
+        for ( l = 0 ; l < w->numpoints ; l++ )
+        {
+          d = glm::dot (w->p[l], glm::vec3(plane)) - plane[3];
+          if (d > 0.1)
+            break;	// point in front
+        }
+        if ( l < w->numpoints )
+          continue;
+
+        //if it's the surface plane
+        if (plane_equal(&planes[facet->surface_plane], plane, &flipped)) {
+          continue;
+        }
+        // see if the plane is allready present
+        for ( i = 0 ; i < facet->n_borders ; i++ ) {
+          if (plane_equal(&planes[facet->border_planes[i]], plane, &flipped)) {
+            break;
+          }
+        }
+
+        if ( i == facet->n_borders ) {
+          if (facet->n_borders > 4 + 6 + 16) warning_ln("too many bevels");
+          facet->border_planes[facet->n_borders] = find_plane2(plane, &flipped);
+
+          for ( k = 0 ; k < facet->n_borders ; k++ ) {
+            if (facet->border_planes[facet->n_borders] ==
+                facet->border_planes[k]) warning_ln("bevel plane already used");
+          }
+
+          facet->border_no_adjust[facet->n_borders] = 0;
+          facet->border_inward[facet->n_borders] = flipped;
+          //
+          w2 = new bsp_winding;
+          w2->numpoints = w->numpoints;
+          w2->p[0] = w->p[0];
+          w2->p[1] = w->p[1];
+          w2->p[2] = w->p[2];
+          w2->p[3] = w->p[3];
+          newplane = planes[facet->border_planes[facet->n_borders]].plane;
+          if (!facet->border_inward[facet->n_borders])
+          {
+            newplane = -newplane;
+            newplane[3] = -newplane[3];
+          } //end if
+          chop_winding_in_place( &w2, newplane, newplane[3], 0.1f );
+          if (!w2) {
+            warning_ln("invalid bevel");
+            continue;
+          }
+          else {
+            // FreeWinding(w2);
+          }
+          //
+          facet->n_borders++;
+          //already got a bevel
+          //					break;
+        }
+      }
+    }
+  }
+  // FreeWinding( w );
+
+  //add opposite plane
+  facet->border_planes[facet->n_borders] = facet->surface_plane;
+  facet->border_no_adjust[facet->n_borders] = 0;
+  facet->border_inward[facet->n_borders] = true;
+  facet->n_borders++;
+
+}
+
+void bsp::_create_patch_collide_from_grid(bsp_grid *grid, bsp::bsp_patchcollide *pf) {
+  int				i, j;
+  glm::vec3			p1, p2, p3;
+  int				gridPlanes[MAX_GRID_SIZE][MAX_GRID_SIZE][2];
+  bsp_facet			*facet;
+  int				borders[4];
+  int				noAdjust[4];
+
+  numPlanes = 0;
+  numFacets = 0;
+
+  // find the planes for each triangle of the grid
+  for ( i = 0 ; i < grid->width - 1 ; i++ ) {
+    for ( j = 0 ; j < grid->height - 1 ; j++ ) {
+      p1 = grid->points[i][j];
+      p2 = grid->points[i+1][j];
+      p3 = grid->points[i+1][j+1];
+      gridPlanes[i][j][0] = find_plane( p1, p2, p3 );
+
+      p1 = grid->points[i+1][j+1];
+      p2 = grid->points[i][j+1];
+      p3 = grid->points[i][j];
+      gridPlanes[i][j][1] = find_plane( p1, p2, p3 );
+    }
+  }
+
+  // create the borders for each facet
+  for ( i = 0 ; i < grid->width - 1 ; i++ ) {
+    for ( j = 0 ; j < grid->height - 1 ; j++ ) {
+
+      borders[EN_TOP] = -1;
+      if ( j > 0 ) {
+        borders[EN_TOP] = gridPlanes[i][j-1][1];
+      } else if ( grid->wrap_height ) {
+        borders[EN_TOP] = gridPlanes[i][grid->height-2][1];
+      } 
+      noAdjust[EN_TOP] = ( borders[EN_TOP] == gridPlanes[i][j][0] );
+      if ( borders[EN_TOP] == -1 || noAdjust[EN_TOP] ) {
+        borders[EN_TOP] = _edge_plane_for_num( grid, gridPlanes, i, j, 0 );
+      }
+
+      borders[EN_BOTTOM] = -1;
+      if ( j < grid->height - 2 ) {
+        borders[EN_BOTTOM] = gridPlanes[i][j+1][0];
+      } else if ( grid->wrap_height ) {
+        borders[EN_BOTTOM] = gridPlanes[i][0][0];
+      }
+      noAdjust[EN_BOTTOM] = ( borders[EN_BOTTOM] == gridPlanes[i][j][1] );
+      if ( borders[EN_BOTTOM] == -1 || noAdjust[EN_BOTTOM] ) {
+        borders[EN_BOTTOM] = _edge_plane_for_num( grid, gridPlanes, i, j, 2 );
+      }
+
+      borders[EN_LEFT] = -1;
+      if ( i > 0 ) {
+        borders[EN_LEFT] = gridPlanes[i-1][j][0];
+      } else if ( grid->wrap_width ) {
+        borders[EN_LEFT] = gridPlanes[grid->width-2][j][0];
+      }
+      noAdjust[EN_LEFT] = ( borders[EN_LEFT] == gridPlanes[i][j][1] );
+      if ( borders[EN_LEFT] == -1 || noAdjust[EN_LEFT] ) {
+        borders[EN_LEFT] = _edge_plane_for_num( grid, gridPlanes, i, j, 3 );
+      }
+
+      borders[EN_RIGHT] = -1;
+      if ( i < grid->width - 2 ) {
+        borders[EN_RIGHT] = gridPlanes[i+1][j][1];
+      } else if ( grid->wrap_width ) {
+        borders[EN_RIGHT] = gridPlanes[0][j][1];
+      }
+      noAdjust[EN_RIGHT] = ( borders[EN_RIGHT] == gridPlanes[i][j][0] );
+      if ( borders[EN_RIGHT] == -1 || noAdjust[EN_RIGHT] ) {
+        borders[EN_RIGHT] = _edge_plane_for_num( grid, gridPlanes, i, j, 1 );
+      }
+
+      assertf(numFacets != MAX_FACETS, "boop that snoot rn");
+      facet = &facets[numFacets];
+      memset( facet, 0, sizeof( *facet ) );
+
+      if ( gridPlanes[i][j][0] == gridPlanes[i][j][1] ) {
+        if ( gridPlanes[i][j][0] == -1 ) {
+          continue;		// degenrate
+        }
+        facet->surface_plane = gridPlanes[i][j][0];
+        facet->n_borders = 4;
+        facet->border_planes[0] = borders[EN_TOP];
+        facet->border_no_adjust[0] = noAdjust[EN_TOP];
+        facet->border_planes[1] = borders[EN_RIGHT];
+        facet->border_no_adjust[1] = noAdjust[EN_RIGHT];
+        facet->border_planes[2] = borders[EN_BOTTOM];
+        facet->border_no_adjust[2] = noAdjust[EN_BOTTOM];
+        facet->border_planes[3] = borders[EN_LEFT];
+        facet->border_no_adjust[3] = noAdjust[EN_LEFT];
+        set_border_inward( facet, grid, gridPlanes, i, j, -1 );
+        if ( validate_facet( facet ) ) {
+          add_facet_bevels( facet );
+          numFacets++;
+        }
+      } else {
+        // two seperate triangles
+        facet->surface_plane = gridPlanes[i][j][0];
+        facet->n_borders = 3;
+        facet->border_planes[0] = borders[EN_TOP];
+        facet->border_no_adjust[0] = noAdjust[EN_TOP];
+        facet->border_planes[1] = borders[EN_RIGHT];
+        facet->border_no_adjust[1] = noAdjust[EN_RIGHT];
+        facet->border_planes[2] = gridPlanes[i][j][1];
+        if ( facet->border_planes[2] == -1 ) {
+          facet->border_planes[2] = borders[EN_BOTTOM];
+          if ( facet->border_planes[2] == -1 ) {
+            facet->border_planes[2] = _edge_plane_for_num( grid, gridPlanes, i, j, 4 );
+          }
+        }
+        set_border_inward( facet, grid, gridPlanes, i, j, 0 );
+        if ( validate_facet( facet ) ) {
+          add_facet_bevels( facet );
+          numFacets++;
+        }
+
+        if ( numFacets == MAX_FACETS ) {
+          Com_Error( ERR_DROP, "MAX_FACETS" );
+        }
+        facet = &facets[numFacets];
+        Com_Memset( facet, 0, sizeof( *facet ) );
+
+        facet->surfacePlane = gridPlanes[i][j][1];
+        facet->n_borders = 3;
+        facet->borderPlanes[0] = borders[EN_BOTTOM];
+        facet->borderNoAdjust[0] = noAdjust[EN_BOTTOM];
+        facet->borderPlanes[1] = borders[EN_LEFT];
+        facet->borderNoAdjust[1] = noAdjust[EN_LEFT];
+        facet->borderPlanes[2] = gridPlanes[i][j][0];
+        if ( facet->borderPlanes[2] == -1 ) {
+          facet->borderPlanes[2] = borders[EN_TOP];
+          if ( facet->borderPlanes[2] == -1 ) {
+            facet->borderPlanes[2] = _edge_plane_for_num( grid, gridPlanes, i, j, 5 );
+          }
+        }
+        CM_SetBorderInward( facet, grid, gridPlanes, i, j, 1 );
+        if ( validate_facet( facet ) ) {
+          CM_AddFacetBevels( facet );
+          numFacets++;
+        }
+      }
+    }
+  }
+
+  // copy the results out
+  pf->numPlanes = numPlanes;
+  pf->numFacets = numFacets;
+  pf->facets = Hunk_Alloc( numFacets * sizeof( *pf->facets ), h_high );
+  Com_Memcpy( pf->facets, facets, numFacets * sizeof( *pf->facets ) );
+  pf->planes = Hunk_Alloc( numPlanes * sizeof( *pf->planes ), h_high );
+  Com_Memcpy( pf->planes, planes, numPlanes * sizeof( *pf->planes ) );
+}
+
 enum class lump {
   entities = 0,
-  textures,
+  shaders,
   planes,
   nodes,
   leaves,
-  leaffaces,
+  leaffaces, // Q3: leafsurfaces
   leafbrushes,
   models,
   brushes,
   brushsides,
   vertices,
   meshverts,
-  effects,
+  fogs,
   faces,
   lightmaps,
-  lightvols,
+  lightgrid,
   visdata
 };
 
@@ -167,6 +1252,8 @@ void bsp::_load_file(const char *filename, float world_scale
 
   load_lump(ifs, &header, lump::faces, _faces);
   _visible_faces.resize(_faces.size(), 0);
+  _patchcollides.resize(_faces.size());
+  _create_patch_collides();
 
   _create_patches(tesselation_level);
 
@@ -262,6 +1349,65 @@ void bsp::_tesselate(int tesselation_level, int control_offset
       _meshverts[offset + 4].offset = (i + 1) * L1 + (j    ) + voff;
       _meshverts[offset + 5].offset = (i    ) * L1 + (j    ) + voff;
     }
+}
+
+void bsp::_create_patch_collides() {
+  for (size_t i = 0; i < _faces.size(); ++i) {
+    glm::vec3 points[max_patch_verts];
+    int width = _faces[i].size[0], height = _faces[i].size[1]
+      , c = width * height;
+    bsp_vertex *dv_p = &_vertices[_faces[i].vertex];
+    for (int j = 0; j < c; j++, dv_p++)
+      points[j] = dv_p->position;
+    // _patchcollides[i];
+    assertf(width > 2 && height > 2, "bad patch size: (%d, %d)", width, height);
+    assertf(!(!(width & 1) || !(height & 1)), "even sizes are invalid for"
+        " quadratic meshes: (%d, %d)", width, height);
+    assertf(width <= MAX_GRID_SIZE && height <= MAX_GRID_SIZE
+        , "source is > MAX_GRID_SIZE");
+
+    bsp_grid grid;
+    grid.width = width;
+    grid.height = height;
+    grid.wrap_width = false;
+    grid.wrap_height = false;
+    for (int k = 0 ; k < width ; k++)
+      for (int l = 0 ; l < height ; l++)
+        grid.points[k][l] = points[l*width + k];
+
+    // subdivide the grid
+    grid.set_wrap_width();
+    grid.subdivide_columns();
+    grid.remove_degenerate_columns();
+
+    grid.transpose();
+
+    grid.set_wrap_width();
+    grid.subdivide_columns();
+    grid.remove_degenerate_columns();
+
+    // we now have a grid of points exactly on the curve
+    // the aproximate surface defined by these points will be
+    // collided against
+    _patchcollides[i].clear_bounds();
+    for (int k = 0 ; k < grid.width ; k++ )
+      for (int l = 0 ; l < grid.height ; l++ )
+        _patchcollides[i].add_point_to_bounds(grid.points[k][l]);
+
+    // c_totalPatchBlocks += ( grid.width - 1 ) * ( grid.height - 1 );
+
+    // generate a bsp tree for the surface
+    CM_PatchCollideFromGrid( &grid, pf );
+
+    // expand by one unit for epsilon purposes
+    pf->bounds[0][0] -= 1;
+    pf->bounds[0][1] -= 1;
+    pf->bounds[0][2] -= 1;
+
+    pf->bounds[1][0] += 1;
+    pf->bounds[1][1] += 1;
+    pf->bounds[1][2] += 1;
+  }
 }
 
 int bsp::_find_leaf(glm::vec3 position) {
@@ -377,10 +1523,12 @@ void bsp::trace_sphere(trace_result *tr, const glm::vec3 &start
 
 void bsp::_trace(trace_result *tr, const trace_description &td
     , const glm::vec3 &start, const glm::vec3 &end) {
+  tr->clip_plane_normal = glm::vec3(0, 0, 0);
   tr->fraction = 1.0f;
+  tr->end = end;
   tr->start_solid = tr->all_solid = false;
 
-  _check_node(tr, td, 0, 0.0f, 1.0f, start, end);
+  _trace_node(tr, td, 0, 0.0f, 1.0f, start, end);
 
   if (tr->fraction == 1.0f)
     tr->end = end;
@@ -389,24 +1537,20 @@ void bsp::_trace(trace_result *tr, const trace_description &td
 }
 
 // Q3: CM_TraceThroughTree
-void bsp::_check_node(trace_result *tr, const trace_description &td
+void bsp::_trace_node(trace_result *tr, const trace_description &td
     , int node_index, float start_fraction, float end_fraction
     , const glm::vec3 &start, const glm::vec3 &end) {
   if (tr->fraction <= start_fraction)
     return;
 
   if (node_index < 0) {
-    bsp_leaf *leaf = &_leaves[-(node_index + 1)];
-    for (int i = 0; i < leaf->n_leafbrushes; ++i) {
-      bsp_brush *b = &_brushes[_leafbrushes[leaf->leafbrush + i].brush];
-      if (b->n_brushsides > 0)
-        _check_brush(tr, td, b, start, end);
-    }
+    _trace_leaf(tr, td, &_leaves[-node_index - 1], start, end);
     return;
   }
 
   bsp_node *node = &_nodes[node_index];
   bsp_plane *plane = &_planes[node->plane];
+  // TODO: plane->type not respected
   float start_dist = glm::dot(start, plane->normal) - plane->dist
     , end_dist = glm::dot(end, plane->normal) - plane->dist, offset = 0;
 
@@ -423,22 +1567,22 @@ void bsp::_check_node(trace_result *tr, const trace_description &td
   }
 
   if (start_dist >= offset + 1 && end_dist >= offset + 1) {
-    _check_node(tr, td, node->front, start_fraction, end_fraction, start, end);
+    _trace_node(tr, td, node->front, start_fraction, end_fraction, start, end);
     return;
   } else if (start_dist < -offset - 1 && end_dist < -offset - 1) {
-    _check_node(tr, td, node->back, start_fraction, end_fraction, start, end);
+    _trace_node(tr, td, node->back, start_fraction, end_fraction, start, end);
     return;
   }
 
   int side;
   float fraction1, fraction2;
   if (start_dist < end_dist) {
-    float inverse_dist = 1.0f / (start_dist - end_dist); // TODO
+    const float inverse_dist = 1.0f / (start_dist - end_dist);
     side = 1; // back
     fraction1 = (start_dist - offset + surface_clip_eps) * inverse_dist;
     fraction2 = (start_dist + offset + surface_clip_eps) * inverse_dist;
   } else if (start_dist > end_dist) {
-    float inverse_dist = 1.0f / (start_dist - end_dist);
+    const float inverse_dist = 1.0f / (start_dist - end_dist);
     side = 0; // front
     fraction1 = (start_dist + offset + surface_clip_eps) * inverse_dist;
     fraction2 = (start_dist - offset - surface_clip_eps) * inverse_dist;
@@ -451,14 +1595,14 @@ void bsp::_check_node(trace_result *tr, const trace_description &td
   // TODO
   // fraction1 = clamp(fraction1, 0.f, 1.f);
   // fraction2 = clamp(fraction2, 0.f, 1.f);
-  if (fraction1 < 0.0f)
-    fraction1 = 0.0f;
-  else if (fraction1 > 1.0f)
-    fraction1 = 1.0f;
-  if (fraction2 < 0.0f)
-    fraction2 = 0.0f;
-  else if (fraction2 > 1.0f)
-    fraction2 = 1.0f;
+  if (fraction1 < 0.f)
+    fraction1 = 0.f;
+  else if (fraction1 > 1.f)
+    fraction1 = 1.f;
+  if (fraction2 < 0.f)
+    fraction2 = 0.f;
+  else if (fraction2 > 1.f)
+    fraction2 = 1.f;
 
   float middle_fraction = start_fraction + (end_fraction - start_fraction)
     * fraction1;
@@ -466,30 +1610,33 @@ void bsp::_check_node(trace_result *tr, const trace_description &td
   glm::vec3 middle = start + fraction1 * (end - start);
 
   if (side == 0)
-    _check_node(tr, td, node->front, start_fraction, middle_fraction, start
+    _trace_node(tr, td, node->front, start_fraction, middle_fraction, start
         , middle);
   else
-    _check_node(tr, td, node->back, start_fraction, middle_fraction, start
+    _trace_node(tr, td, node->back, start_fraction, middle_fraction, start
         , middle);
 
   middle_fraction = start_fraction + (end_fraction - start_fraction) * fraction2;
   middle = start + fraction2 * (end - start);
 
   if (side == 0)
-    _check_node(tr, td, node->back, middle_fraction, end_fraction, middle, end);
+    _trace_node(tr, td, node->back, middle_fraction, end_fraction, middle, end);
   else
-    _check_node(tr, td, node->front, middle_fraction, end_fraction, middle, end);
+    _trace_node(tr, td, node->front, middle_fraction, end_fraction, middle, end);
 }
 
 // Q3: CM_TraceThroughBrush
-void bsp::_check_brush(trace_result *tr, const trace_description &td
-    , bsp_brush *b, const glm::vec3 &input_start, const glm::vec3 &input_end) {
+void bsp::_trace_brush(trace_result *tr, const trace_description &td
+    , const bsp_brush *b, const glm::vec3 &input_start
+    , const glm::vec3 &input_end) {
+  bsp_plane *clip_plane = nullptr;
   float start_fraction = -1.0f, end_fraction = 1.0f;
-  bool get_out = false, starts_out = 0;
+  if (!b->n_brushsides)
+    return;
+  bool get_out = false, starts_out = false;
   for (int i = 0; i < b->n_brushsides; ++i) {
     bsp_brushside *brushside = &_brushsides[b->brushside + i];
     bsp_plane *plane = &_planes[brushside->plane];
-    glm::vec3 offset;
     float start_dist, end_dist;
 
     switch (td.type) {
@@ -508,10 +1655,10 @@ void bsp::_check_brush(trace_result *tr, const trace_description &td
     }
 
     if (end_dist > 0)
-      get_out = 1;
+      get_out = true;
 
     if (start_dist > 0)
-      starts_out = 1;
+      starts_out = true;
 
     if (start_dist > 0 && (end_dist >= surface_clip_eps || end_dist >= start_dist))
       return;
@@ -525,7 +1672,7 @@ void bsp::_check_brush(trace_result *tr, const trace_description &td
         fraction = 0;
       if (fraction > start_fraction) {
         start_fraction = fraction;
-        tr->clip_plane_normal = plane->normal;
+        clip_plane = plane;
       }
     } else {
       float fraction = (start_dist + surface_clip_eps) / (start_dist - end_dist);
@@ -550,6 +1697,38 @@ void bsp::_check_brush(trace_result *tr, const trace_description &td
       if (start_fraction < 0)
         start_fraction = 0;
       tr->fraction = start_fraction;
+      tr->clip_plane_normal = clip_plane->normal;
     }
+}
+
+/// `const glm::vec3 &start' and `const glm::vec3 &end'
+/// are all passed to only be passed to _trace_brush
+void bsp::_trace_leaf(trace_result *tr, const trace_description &td
+    , const bsp_leaf *l, const glm::vec3 &start
+    , const glm::vec3 &end) {
+  // trace line against all brushes in the leaf
+  for (int k = 0; k < l->n_leafbrushes; ++k) {
+    bsp_brush *b = &_brushes[_leafbrushes[l->leafbrush + k].brush];
+    // if (b->checkcount == cm.checkcount)
+    //   continue; // already checked this brush in another leaf
+    // b->checkcount = cm.checkcount;
+    _trace_brush(tr, td, b, start, end);
+    if (!tr->fraction)
+      return;
+  }
+
+  // trace line against all patches in the leaf
+  for (int k = 0; k < l->n_leaffaces; ++k) {
+    bsp_face *f = &_faces[_leaffaces[l->leafface + k].face];
+    if (!f)
+      continue;
+    // if (patch->checkcount == cm.checkcount)
+    //   continue; // already checked this patch in another leaf
+    // patch->checkcount = cm.checkcount;
+    float old_frac = tr->fraction;
+    // CM_TraceThroughPatchCollide(tw, patch->pc);
+    if (!tr->fraction)
+      return;
+  }
 }
 

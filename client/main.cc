@@ -158,7 +158,7 @@ static void update(double dt, double t, screen *s) {
           return;
         }
         for (i = 0; i < num_planes; ++i)
-          if (glm::dot(tr.clip_plane_normal, planes[i]) > 0.99) {
+          if (glm::dot(tr.clip_plane_normal, planes[i]) > 0.99f) {
             vel += tr.clip_plane_normal;
             break;
           }
@@ -181,7 +181,7 @@ static void update(double dt, double t, screen *s) {
           for (int j = 0; j < num_planes; ++j) {
             if (j == i)
               continue;
-            if (glm::dot(clip_vel, planes[j]) >= 0.1)
+            if (glm::dot(clip_vel, planes[j]) >= 0.1f)
               continue; // move doesn't interact with the plane
 
             // try clipping the move to the plane
@@ -203,7 +203,7 @@ static void update(double dt, double t, screen *s) {
             for (int k = 0; k < num_planes; ++k) {
               if (k == i || k == j)
                 continue;
-              if (glm::dot(clip_vel, planes[k]) >= 0.1)
+              if (glm::dot(clip_vel, planes[k]) >= 0.1f)
                 continue; // move doesn't interact with the plane
               // stop dead at a triple plane interaction
               vel = glm::vec3(0);
