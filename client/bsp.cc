@@ -1224,6 +1224,8 @@ void bsp::_load_file(const char *filename, float world_scale
         , header.version);
   }
 
+  load_lump(ifs, &header, lump::shaders, _shaders);
+
   load_lump(ifs, &header, lump::planes, _planes);
   for (bsp_plane &p : _planes) {
     std::swap(p.normal.y, p.normal.z);
@@ -1720,6 +1722,8 @@ void bsp::_trace_leaf(trace_result *tr, const trace_description &td
     // if (b->checkcount == cm.checkcount)
     //   continue; // already checked this brush in another leaf
     // b->checkcount = cm.checkcount;
+    if (!(_shaders[b->shader].contents & 1))
+      continue;
     _trace_brush(tr, td, b, start, end);
     if (!tr->fraction)
       return;
@@ -1730,6 +1734,8 @@ void bsp::_trace_leaf(trace_result *tr, const trace_description &td
     bsp_patchcollide *p = &_patchcollides[_leaffaces[l->leafface + k].face];
     if (!p || !p->valid)
       continue;
+    // if (!(_shaders[_faces[_leaffaces[l->leafface + k].face].shader].contents & 1))
+    //   continue;
     // if (patch->checkcount == cm.checkcount)
     //   continue; // already checked this patch in another leaf
     // patch->checkcount = cm.checkcount;

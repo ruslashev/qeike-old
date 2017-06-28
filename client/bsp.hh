@@ -14,6 +14,12 @@ struct trace_result {
 };
 
 class bsp {
+  struct bsp_shader {
+    char name[64];
+    int flags;
+    int contents;
+  };
+
   struct bsp_plane {
     glm::vec3 normal;
     float dist;
@@ -161,6 +167,7 @@ class bsp {
     float radius;
   };
 
+  std::vector<bsp_shader> _shaders;
   std::vector<bsp_plane> _planes;
   std::vector<bsp_node> _nodes;
   std::vector<bsp_leaf> _leaves;
