@@ -120,7 +120,7 @@ static void update(double dt, double t, screen *s) {
     };
 
     auto clip_velocity = [](glm::vec3 velocity, glm::vec3 normal) {
-      const float overclip = 1.01f;
+      const float overclip = 1.001f;
       float back_off = glm::dot(velocity, normal);
       if (back_off < 0)
         back_off *= overclip;
@@ -129,19 +129,41 @@ static void update(double dt, double t, screen *s) {
       return velocity - normal * back_off;
     };
 
+    auto correct_all_solid = [](glm::vec3 position) {
+      // jitter around
+      for (int i = -1; i <= 1; i++)
+        for (int j = -1; j <= 1; j++)
+          for (int k = -1; k <= 1; k++) {
+            glm::vec3 point = position;
+            point += glm::vec3(i, j, k) / 32.f;
+            trace_result tr;
+            b->trace_sphere(&tr, point, point, 0.25f);
+            if (!tr.all_solid) {
+              point.y -= 0.25f / 32.f;
+              b->trace_sphere(&tr, position, point, 0.25f);
+              return true;
+            }
+          }
+      return false;
+    };
+
     auto slide_move = [clip_velocity](glm::vec3 &position, glm::vec3 old_vel, glm::vec3 &vel, float dtf) {
       const int max_clip_planes = 5, num_bumps = 5;
       glm::vec3 planes[max_clip_planes];
-      int num_planes = 0, i;
+      int num_planes = 0, i, bump_count;
       planes[num_planes] = glm::normalize(vel);
       ++num_planes;
       float time_left = dtf;
       glm::vec3 end_vel = vel;
-      for (int bump_count = 0; bump_count < num_bumps; ++bump_count) {
+      for (bump_count = 0; bump_count < num_bumps; ++bump_count) {
         // integration step
         glm::vec3 wish_pos = position + (old_vel + vel) * 0.5f * (float)time_left;
         trace_result tr;
         b->trace_sphere(&tr, position, wish_pos, 0.25f);
+        if (tr.all_solid) {
+          vel.y = 0;
+          return true;
+        }
         if (tr.fraction > 0)
           position = tr.end;
         if (tr.fraction == 1)
@@ -149,7 +171,7 @@ static void update(double dt, double t, screen *s) {
         time_left -= time_left * tr.fraction;
         if (num_planes >= max_clip_planes) {
           vel = glm::vec3(0);
-          return;
+          return true;
         }
         for (i = 0; i < num_planes; ++i)
           if (glm::dot(tr.clip_plane_normal, planes[i]) > 0.99f) {
@@ -201,6 +223,7 @@ static void update(double dt, double t, screen *s) {
                 continue; // move doesn't interact with the plane
               // stop dead at a triple plane interaction
               vel = glm::vec3(0);
+              return true;
             }
           }
 
@@ -210,7 +233,97 @@ static void update(double dt, double t, screen *s) {
           break;
         }
       }
+      return bump_count != 0;
     };
+
+#if 0
+    auto step_slide_move = [slide_move](glm::vec3 position, glm::vec3 old_vel, glm::vec3 &vel, float dtf) {
+      const float step_size = 18;
+      glm::vec3 start_o = position, start_v = old_vel, down_o, down_v, up, down;
+      float stepSize;
+
+      if (slide_move(position, old_vel, vel, dtf) == false)
+        return; // we got exactly where we wanted to go first try
+
+      down = start_o;
+      down.y -=
+      down[2] -= STEPSIZE;
+      pm->trace (&trace, start_o, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
+      VectorSet(up, 0, 0, 1);
+      // never step up when you still have up velocity
+      if ( pm->ps->velocity[2] > 0 && (trace.fraction == 1.0 ||
+            DotProduct(trace.plane.normal, up) < 0.7)) {
+        return;
+      }
+
+      VectorCopy (pm->ps->origin, down_o);
+      VectorCopy (pm->ps->velocity, down_v);
+
+      VectorCopy (start_o, up);
+      up[2] += STEPSIZE;
+
+      // test the player position if they were a stepheight higher
+      pm->trace (&trace, start_o, pm->mins, pm->maxs, up, pm->ps->clientNum, pm->tracemask);
+      if ( trace.allsolid ) {
+        if ( pm->debugLevel ) {
+          Com_Printf("%i:bend can't step\n", c_pmove);
+        }
+        return;		// can't step up
+      }
+
+      stepSize = trace.endpos[2] - start_o[2];
+      // try slidemove from this position
+      VectorCopy (trace.endpos, pm->ps->origin);
+      VectorCopy (start_v, pm->ps->velocity);
+
+      PM_SlideMove( gravity );
+
+      // push down the final amount
+      VectorCopy (pm->ps->origin, down);
+      down[2] -= stepSize;
+      pm->trace (&trace, pm->ps->origin, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
+      if ( !trace.allsolid ) {
+        VectorCopy (trace.endpos, pm->ps->origin);
+      }
+      if ( trace.fraction < 1.0 ) {
+        PM_ClipVelocity( pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP );
+      }
+
+#if 0
+      // if the down trace can trace back to the original position directly, don't step
+      pm->trace( &trace, pm->ps->origin, pm->mins, pm->maxs, start_o, pm->ps->clientNum, pm->tracemask);
+      if ( trace.fraction == 1.0 ) {
+        // use the original move
+        VectorCopy (down_o, pm->ps->origin);
+        VectorCopy (down_v, pm->ps->velocity);
+        if ( pm->debugLevel ) {
+          Com_Printf("%i:bend\n", c_pmove);
+        }
+      } else
+#endif
+      {
+        // use the step move
+        float	delta;
+
+        delta = pm->ps->origin[2] - start_o[2];
+        if ( delta > 2 ) {
+          if ( delta < 7 ) {
+            PM_AddEvent( EV_STEP_4 );
+          } else if ( delta < 11 ) {
+            PM_AddEvent( EV_STEP_8 );
+          } else if ( delta < 15 ) {
+            PM_AddEvent( EV_STEP_12 );
+          } else {
+            PM_AddEvent( EV_STEP_16 );
+          }
+        }
+        if ( pm->debugLevel ) {
+          Com_Printf("%i:stepped\n", c_pmove);
+        }
+      }
+    };
+#endif
+
     /* vec3 old_vel = vel;
        vel += accel * dt;
        pos += (old_vel + vel) * 0.5 * dt;
