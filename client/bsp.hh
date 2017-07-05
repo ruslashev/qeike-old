@@ -189,7 +189,7 @@ class bsp {
   int num_planes;
   bsp_patch_plane planes[MAX_PATCH_PLANES];
   int num_facets;
-  bsp_facet facets[MAX_PATCH_PLANES]; //maybe MAX_FACETS ??
+  bsp_facet facets[MAX_FACETS];
 
   GLint _vertex_pos_attr, _lightmap_coord_attr, _mvp_mat_unif;
   shader_program _sp;
@@ -204,17 +204,20 @@ class bsp {
       , int voff, int eoff);
 
   void _create_patch_collides();
-  void _create_patch_collide_from_grid(bsp_grid *grid, bsp::bsp_patchcollide *pf);
+  void _create_patch_collide_from_grid(bsp_grid *grid
+      , bsp::bsp_patchcollide *pf);
   int find_plane( glm::vec3 p1, glm::vec3 p2, glm::vec3 p3 );
   int _edge_plane_for_num(bsp_grid *grid
-      , int grid_planes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j, int k );
-  void set_border_inward( bsp_facet *facet, bsp_grid *grid, int grid_planes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j, int which );
+      , int grid_planes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j, int k);
+  void set_border_inward(bsp_facet *facet, bsp_grid *grid
+      , int grid_planes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j
+      , int which);
   int point_on_plane_side(const glm::vec3 &p, int plane_num);
   bool validate_facet( bsp_facet *facet );
   bsp_winding *base_winding_for_plane (glm::vec3 normal, float dist);
   void chop_winding_in_place(bsp_winding **inout, const glm::vec3 &normal
       , float dist, float epsilon);
-  void add_facet_bevels( bsp_facet *facet );
+  void add_facet_bevels(bsp_facet *facet);
   int plane_equal(bsp_patch_plane *p, glm::vec4 plane, int *flipped);
   int find_plane2(const glm::vec4 &plane, int *flipped);
 
@@ -232,8 +235,10 @@ class bsp {
       , const glm::vec3 &input_end);
   void _trace_leaf(trace_result *tr, const trace_description &td
       , const bsp_leaf *l, const glm::vec3 &start, const glm::vec3 &end);
-  void _trace_patch(trace_result *tr, const trace_description &td, bsp_patchcollide *p, glm::vec3 input_start, glm::vec3 input_end);
-  bool _check_facet_plane(glm::vec3 plane, glm::vec3 start, glm::vec3 end, float *enter_frac, float *leave_frac, bool *hit);
+  void _trace_patch(trace_result *tr, const trace_description &td
+      , bsp_patchcollide *p, glm::vec3 input_start, glm::vec3 input_end);
+  bool _check_facet_plane(glm::vec3 plane, glm::vec3 start, glm::vec3 end
+      , float *enter_frac, float *leave_frac, bool *hit);
 public:
   bsp(const char *filename, float world_scale, int tesselation_level);
   ~bsp();

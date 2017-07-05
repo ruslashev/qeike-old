@@ -1514,8 +1514,9 @@ void bsp::_trace_leaf(trace_result *tr, const trace_description &td
     bsp_patchcollide *p = &_patchcollides[_leaffaces[l->leafface + k].face];
     if (!p || !p->valid)
       continue;
-    // if (!(_shaders[_faces[_leaffaces[l->leafface + k].face].shader].contents & 1))
-    //   continue;
+    if (!(_shaders[_faces[_leaffaces[
+          l->leafface + k].face].shader].contents & 1))
+      continue;
     // if (patch->checkcount == cm.checkcount)
     //   continue; // already checked this patch in another leaf
     // patch->checkcount = cm.checkcount;
@@ -1526,7 +1527,8 @@ void bsp::_trace_leaf(trace_result *tr, const trace_description &td
   }
 }
 
-void bsp::_trace_patch(trace_result *tr, const trace_description &td, bsp_patchcollide *p, glm::vec3 input_start, glm::vec3 input_end) {
+void bsp::_trace_patch(trace_result *tr, const trace_description &td
+    , bsp_patchcollide *p, glm::vec3 input_start, glm::vec3 input_end) {
   int i, j, hitnum;
   bool hit;
   float offset, enter_frac, leave_frac, t;
@@ -1535,18 +1537,12 @@ void bsp::_trace_patch(trace_result *tr, const trace_description &td, bsp_patchc
   glm::vec4 plane, bestplane;
   glm::vec3 startp, endp;
 
-  // if (tw->isPoint) {
-  //   CM_TracePointThroughPatchCollide(tw, pc);
-  //   return;
-  // }
-
   facet = p->facets;
-  for (i = 0 ; i < p->n_facets ; i++, facet++) {
+  for (i = 0; i < p->n_facets; i++, facet++) {
     enter_frac = -1.0;
     leave_frac = 1.0;
     hitnum = -1;
-    //
-    planes = &p->planes[ facet->surface_plane ];
+    planes = &p->planes[facet->surface_plane];
     plane = planes->plane;
     plane[3] = planes->plane[3];
     // adjust the plane distance apropriately for radius
@@ -1556,20 +1552,18 @@ void bsp::_trace_patch(trace_result *tr, const trace_description &td, bsp_patchc
     startp = input_start;
     endp =   input_end;
 
-    if (!_check_facet_plane(glm::vec3(plane), startp, endp, &enter_frac, &leave_frac, &hit)) {
+    if (!_check_facet_plane(glm::vec3(plane), startp, endp, &enter_frac
+          , &leave_frac, &hit))
       continue;
-    }
-    if (hit) {
+    if (hit)
       bestplane = plane;
-    }
 
     for (j = 0; j < facet->n_borders; j++) {
       planes = &p->planes[ facet->border_planes[j] ];
       if (facet->border_inward[j]) {
         plane = -planes->plane;
         plane[3] = -planes->plane[3];
-      }
-      else {
+      } else {
         plane = planes->plane;
         plane[3] = planes->plane[3];
       }
@@ -1580,32 +1574,33 @@ void bsp::_trace_patch(trace_result *tr, const trace_description &td, bsp_patchc
       startp = input_start;
       endp = input_end;
 
-      if (!_check_facet_plane(glm::vec3(plane), startp, endp, &enter_frac, &leave_frac, &hit)) {
+      if (!_check_facet_plane(glm::vec3(plane), startp, endp, &enter_frac
+            , &leave_frac, &hit))
         break;
-      }
       if (hit) {
         hitnum = j;
         bestplane = plane;
       }
     }
-    if (j < facet->n_borders) continue;
+    if (j < facet->n_borders)
+      continue;
     //never clip against the back side
-    if (hitnum == facet->n_borders - 1) continue;
+    if (hitnum == facet->n_borders - 1)
+      continue;
 
-    if (enter_frac < leave_frac && enter_frac >= 0) {
+    if (enter_frac < leave_frac && enter_frac >= 0)
       if (enter_frac < tr->fraction) {
-        if (enter_frac < 0) {
+        if (enter_frac < 0)
           enter_frac = 0;
-        }
         tr->fraction = enter_frac;
         tr->clip_plane_normal = bestplane;
         // tr->trace.plane.dist = bestplane[3];
       }
-    }
   }
 }
 
-bool bsp::_check_facet_plane(glm::vec3 plane, glm::vec3 start, glm::vec3 end, float *enter_frac, float *leave_frac, bool *hit) {
+bool bsp::_check_facet_plane(glm::vec3 plane, glm::vec3 start, glm::vec3 end
+    , float *enter_frac, float *leave_frac, bool *hit) {
   float d1, d2, f;
 
   *hit = false;
