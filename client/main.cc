@@ -34,7 +34,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new bsp("mapz/q3dm6.bsp", 32.f, 10);
+  b = new bsp("mapz/q3/q3dm6.bsp", 32.f, 10);
 
   s->lock_mouse();
 }
