@@ -2,4 +2,7 @@ qeike
 *.o
 *.d
 *.bsp
+*.cm
+*.map
+*.proc
 
