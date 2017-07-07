@@ -1,4 +1,4 @@
-#include "bsp.hh"
+#include "d3map.hh"
 #include "camera.hh"
 #include "frustum.hh"
 #include "ogl.hh"
@@ -8,12 +8,10 @@
 
 static float fov = 60, screen_aspect_ratio;
 static int move, strafe;
-static cube_drawer *cd;
-static sphere_drawer *sd;
 static axis_drawer *ad;
 static entity *cube_ent;
 static camera *cam;
-static bsp *b;
+static d3map *d;
 static bool wireframe = false, noclip = true, update_frustum_culling = true;
 static int movement_switch = 0;
 static frustum f;
@@ -22,8 +20,6 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  cd = new cube_drawer;
-  sd = new sphere_drawer;
   ad = new axis_drawer;
 
   cube_ent = new entity(glm::vec3(1, 2, 5));
@@ -34,7 +30,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new bsp("mapz/q3/q3dm6.bsp", 32.f, 10);
+  d = new d3map("mapz/d3/blu/blu");
 
   s->lock_mouse();
 }
@@ -85,25 +81,23 @@ static void update(double dt, double t, screen *s) {
   } else {
     auto accelerate = [](glm::vec3 prev_velocity, glm::vec3 wish_dir, float dtf) {
       float wish_speed = 4.f, accel = 10.f;
+#if 0
       if (movement_switch == 0) {
-        // Q3 movement
-        puts("Q3 movement");
+        // puts("Q3 movement");
         float proj_vel = glm::dot(prev_velocity, wish_dir)
           , accel_speed = accel * dtf * wish_speed;
         if (accel_speed > wish_speed - proj_vel)
           accel_speed = wish_speed - proj_vel;
         return prev_velocity + accel_speed * wish_dir;
       } else if (movement_switch == 1) {
-        // Article movement
-        puts("Article movement");
+        // puts("Article movement");
         float proj_vel = glm::dot(prev_velocity, wish_dir)
           , accel_speed = accel * dtf;
         if (accel_speed > wish_speed - proj_vel)
           accel_speed = wish_speed - proj_vel;
         return prev_velocity + accel_speed * wish_dir;
       } else if (movement_switch == 2) {
-        // Q3 fixed movement
-        // TODO: bugful
+#endif
         // puts("Q3 fixed movement");
         glm::vec3 wish_velocity = wish_dir * wish_speed
           , push_vec = wish_velocity - prev_velocity;
@@ -115,10 +109,13 @@ static void update(double dt, double t, screen *s) {
         if (can_push > push_len)
           can_push = push_len;
         return prev_velocity + push_dir * can_push;
-      } else {
-      }
+#if 0
+      } else
+        return prev_velocity;
+#endif
     };
 
+#if 0
     auto clip_velocity = [](glm::vec3 velocity, glm::vec3 normal) {
       const float overclip = 1.001f;
       float back_off = glm::dot(velocity, normal);
@@ -236,7 +233,6 @@ static void update(double dt, double t, screen *s) {
       return bump_count != 0;
     };
 
-#if 0
     auto step_slide_move = [slide_move](glm::vec3 position, glm::vec3 old_vel, glm::vec3 &vel, float dtf) {
       const float step_size = 18;
       glm::vec3 start_o = position, start_v = old_vel, down_o, down_v, up, down;
@@ -330,7 +326,7 @@ static void update(double dt, double t, screen *s) {
      */
     glm::vec3 old_vel = cam->vel;
     cam->vel = accelerate(cam->vel, cam->compute_view_dir(), dt);
-    slide_move(cam->pos, old_vel, cam->vel, (float)dt);
+    cam->pos += (old_vel + cam->vel) * 0.5f * (float)dt;
   }
 }
 
@@ -348,14 +344,15 @@ static void draw(double alpha) {
   if (update_frustum_culling)
     f.extract_planes(projection * view);
 
-  b->draw(cam->pos, projection * view, f);
-  cd->draw(projection * view * cube_ent->compute_model_mat());
+  // b->draw(cam->pos, projection * view, f);
   ad->draw(projection * view);
 }
 
 static void cleanup() {
   delete cam;
-  delete b;
+  delete d;
+  delete ad;
+  delete cube_ent;
 }
 
 int main() {
