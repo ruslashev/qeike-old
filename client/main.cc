@@ -8,7 +8,7 @@
 
 static float fov = 60, screen_aspect_ratio;
 static int move, strafe;
-static axis_drawer *ad;
+// static axis_drawer *ad;
 static entity *cube_ent;
 static camera *cam;
 static d3map *d;
@@ -20,13 +20,13 @@ static void graphics_load(screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
 
-  ad = new axis_drawer;
+  // ad = new axis_drawer;
 
   cube_ent = new entity(glm::vec3(1, 2, 5));
   cam = new camera(cube_ent);
 
   glEnable(GL_DEPTH_TEST);
-  glEnable(GL_CULL_FACE);
+  // glEnable(GL_CULL_FACE);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
@@ -344,14 +344,14 @@ static void draw(double alpha) {
   if (update_frustum_culling)
     f.extract_planes(projection * view);
 
-  // b->draw(cam->pos, projection * view, f);
-  ad->draw(projection * view);
+  d->draw(cam->pos, projection * view, f);
+  // ad->draw(projection * view);
 }
 
 static void cleanup() {
   delete cam;
   delete d;
-  delete ad;
+  // delete ad;
   delete cube_ent;
 }
 
