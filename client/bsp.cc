@@ -36,6 +36,10 @@ bsp::bsp_winding::bsp_winding(int size)
   p.resize(size);
 }
 
+bsp::bsp_patchcollide::bsp_patchcollide()
+  : valid(false) {
+}
+
 void bsp::bsp_patchcollide::clear_bounds() {
   bounds[0] = glm::vec3(99999);
   bounds[1] = glm::vec3(-99999);
@@ -1062,7 +1066,7 @@ void bsp::_load_file(const char *filename, float world_scale
 
   load_lump(ifs, &header, lump::faces, _faces);
   _visible_faces.resize(_faces.size(), 0);
-  _patchcollides.resize(_faces.size(), { false });
+  _patchcollides.resize(_faces.size());
   _create_patch_collides();
 
   _create_patches(tesselation_level);
@@ -1532,7 +1536,7 @@ void bsp::_trace_patch(trace_result *tr, const trace_description &td
   int i, j, hitnum;
   bool hit;
   float offset, enter_frac, leave_frac, t;
-  bsp_patch_plane *planes;
+  bsp_patch_plane *l_planes;
   bsp_facet *facet;
   glm::vec4 plane, bestplane;
   glm::vec3 startp, endp;
@@ -1542,9 +1546,9 @@ void bsp::_trace_patch(trace_result *tr, const trace_description &td
     enter_frac = -1.0;
     leave_frac = 1.0;
     hitnum = -1;
-    planes = &p->planes[facet->surface_plane];
-    plane = planes->plane;
-    plane[3] = planes->plane[3];
+    l_planes = &p->planes[facet->surface_plane];
+    plane = l_planes->plane;
+    plane[3] = l_planes->plane[3];
     // adjust the plane distance apropriately for radius
     plane[3] += td.radius;
 
@@ -1559,13 +1563,13 @@ void bsp::_trace_patch(trace_result *tr, const trace_description &td
       bestplane = plane;
 
     for (j = 0; j < facet->n_borders; j++) {
-      planes = &p->planes[ facet->border_planes[j] ];
+      l_planes = &p->planes[ facet->border_planes[j] ];
       if (facet->border_inward[j]) {
-        plane = -planes->plane;
-        plane[3] = -planes->plane[3];
+        plane = -l_planes->plane;
+        plane[3] = -l_planes->plane[3];
       } else {
-        plane = planes->plane;
-        plane[3] = planes->plane[3];
+        plane = l_planes->plane;
+        plane[3] = l_planes->plane[3];
       }
       // adjust the plane distance apropriately for radius
       plane[3] += td.radius;

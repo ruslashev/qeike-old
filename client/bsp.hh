@@ -124,6 +124,7 @@ class bsp {
     bsp_facet *facets;
     // std::vector<bsp_patch_plane> patch_planes;
     // std::vector<bsp_facet> facets;
+    bsp_patchcollide();
     void clear_bounds();
     void add_point_to_bounds(const glm::vec3 &v);
   };
