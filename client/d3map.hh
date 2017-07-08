@@ -44,8 +44,7 @@ public:
   int index;
 
   d3_area(const std::string &n_name, int n_index);
-  void read_from_file(std::ifstream &file, std::vector<d3_vertex> &vertices
-      , std::vector<unsigned int> &elements);
+  void read_from_file(std::ifstream &file, d3map *f);
   void draw(const glm::vec3 &position) const;
 };
 
@@ -61,13 +60,16 @@ class d3map {
 
   GLint _vertex_pos_attr, _mvp_mat_unif;
   shader_program _sp;
-  vertex_array_object _vao;
-  array_buffer _vbo;
-  element_array_buffer _ebo;
 
   void _load_proc(const std::string &filename);
   int _get_area_idx_by_pos(const glm::vec3 &position);
 public:
+  array_buffer vbo;
+  element_array_buffer ebo;
+  std::vector<d3_vertex> vertices;
+  std::vector<unsigned int> elements;
+  unsigned int ebo_size;
+
   void add_portal_to_area(d3_portal *p, int idx);
   int get_area_idx_by_name(const std::string &name); // TODO std::map
   d3map(const std::string &filename);

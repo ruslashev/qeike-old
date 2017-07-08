@@ -30,7 +30,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  d = new d3map("mapz/d3/blu/blu");
+  d = new d3map("mapz/d3/mars_city1/mars_city1");
 
   s->lock_mouse();
 }

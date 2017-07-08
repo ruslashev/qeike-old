@@ -5,9 +5,6 @@
 #include <sstream>
 #include <glm/gtc/type_ptr.hpp>
 
-d3_lexer::d3_lexer(std::string filename) { // TODO
-}
-
 void d3_plane::normalize() {
   // TODO fastinvsqrt
   float inv_length = 1.0f / glm::length(normal);
@@ -93,9 +90,9 @@ void d3_portal::render_from_area(const glm::vec3 &position, int idx) {
   // render area if visible
   if ((max.x > min.x) && (max.y > min.y)) {
     if (index == m_area_pos)
-      m_scene->get_area( m_area_neg )->render( camera, min, max );
+      m_scene->get_area(m_area_neg)->render(camera, min, max);
     else
-      m_scene->get_area( m_area_pos )->render( camera, min, max );
+      m_scene->get_area(m_area_pos)->render(camera, min, max);
   }
 #endif
 }
@@ -105,10 +102,8 @@ d3_area::d3_area(const std::string &n_name, int n_index)
   , index(n_index) {
 }
 
-void d3_area::read_from_file(std::ifstream &file
-    , std::vector<d3_vertex> &vertices, std::vector<unsigned int> &elements) {
+void d3_area::read_from_file(std::ifstream &file, d3map *f) {
   const int num_surfaces = proc_get_next_int(file);
-  const float scale_down = 64.f;
   for (int i = 0; i < num_surfaces; ++i) {
     std::string texture_filename = proc_get_next_string(file) + ".tga";
 
@@ -116,18 +111,20 @@ void d3_area::read_from_file(std::ifstream &file
       , num_ind = proc_get_next_int(file);
     for (int j = 0; j < num_verts; ++j) {
       d3_vertex v;
-      v.pos.x = (float)proc_get_next_float(file) / scale_down;
-      v.pos.y = (float)proc_get_next_float(file) / scale_down;
-      v.pos.z = (float)proc_get_next_float(file) / scale_down;
+      v.pos.z = proc_get_next_float(file);
+      v.pos.x = proc_get_next_float(file);
+      v.pos.y = proc_get_next_float(file);
       v.texcoord.x = proc_get_next_float(file);
       v.texcoord.y = proc_get_next_float(file);
       v.normal.x = proc_get_next_float(file);
       v.normal.y = proc_get_next_float(file);
       v.normal.z = proc_get_next_float(file);
-      vertices.push_back(std::move(v));
+      f->vertices.push_back(std::move(v));
     }
     for (int j = 0; j < num_ind; ++j)
-      elements.push_back(proc_get_next_int(file));
+      f->elements.push_back(f->ebo_size + proc_get_next_int(file));
+
+    f->ebo_size += num_verts;
   }
 }
 
@@ -144,15 +141,13 @@ void d3map::_load_proc(const std::string &filename) {
   if (!ifs)
     die("failed to open \"%s\"", filename.c_str());
 
-  std::vector<d3_vertex> vertices;
-  std::vector<unsigned int> elements;
-
+  ebo_size = 0;
   std::string t;
   while (ifs >> t) {
     if (t == "model") {
       std::string name = proc_get_next_string(ifs);
       d3_area a(name, _areas.size());
-      a.read_from_file(ifs, vertices, elements);
+      a.read_from_file(ifs, this);
       _areas.push_back(std::move(a));
     } else if (t == "interAreaPortals") {
       const int num_areas = proc_get_next_int(ifs),
@@ -189,12 +184,6 @@ void d3map::_load_proc(const std::string &filename) {
     }
   }
   ifs.close();
-
-  _vbo.bind();
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(d3_vertex)
-      , vertices.data(), GL_STATIC_DRAW);
-  _ebo.bind();
-  _ebo.upload(elements);
 }
 
 int d3map::_get_area_idx_by_pos(const glm::vec3 &position) {
@@ -207,7 +196,7 @@ int d3map::_get_area_idx_by_pos(const glm::vec3 &position) {
         node = &_nodes[node->pos_child];
       else
         return node->pos_child;
-    } else { // backside
+    } else { // behind
       if (node->neg_child > 0)
         node = &_nodes[node->neg_child];
       else
@@ -229,46 +218,46 @@ int d3map::get_area_idx_by_name(const std::string &name) {
 d3map::d3map(const std::string &filename)
   : _sp(shaders::simple_vert, shaders::simple_frag) {
 
-  _vao.bind();
-
   _sp.use_this_prog();
   _vertex_pos_attr = _sp.bind_attrib("vertex_pos");
   _mvp_mat_unif = _sp.bind_uniform("mvp");
 
   this->_load_proc(filename + ".proc");
 
-  glEnableVertexAttribArray(_vertex_pos_attr);
-  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
-      , sizeof(d3_vertex), 0);
+  vbo.bind();
+  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(d3_vertex)
+      , vertices.data(), GL_STATIC_DRAW);
+  ebo.bind();
+  ebo.upload(elements);
 
   _sp.dont_use_this_prog();
-  _vao.unbind();
-  _vbo.unbind();
-  _ebo.unbind();
 }
 
 void d3map::draw(const glm::vec3 &position, const glm::mat4 &mvp
     , const frustum &f) {
   // _set_visible_faces(position, f);
 
-  _vao.bind();
   _sp.use_this_prog();
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  int size;
-  glGetBufferParameteriv(GL_ELEMENT_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
-  glDrawElements(GL_TRIANGLES, size / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
+  glEnableVertexAttribArray(_vertex_pos_attr);
+  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
+      , sizeof(d3_vertex), 0);
+
+  vbo.bind();
+  ebo.bind();
+  glDrawElements(GL_TRIANGLES, ebo_size, GL_UNSIGNED_INT, 0);
 
   // int start_area = _get_area_idx_by_pos(position);
   // if (start_area >= 0) {
     // position is in the void
-    // for (const d3_area &a : _areas)
+    // for (const d3_area &a : _areas) {
     //   a.draw(position);
+    // }
   // else
   //   _areas[-1 - start_area].draw(position);
 
-  _vao.unbind();
   _sp.dont_use_this_prog();
 }
 

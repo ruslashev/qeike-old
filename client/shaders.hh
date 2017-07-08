@@ -68,7 +68,7 @@ static const char *simple_vert = _glsl(
   attribute vec3 vertex_pos;
   uniform mat4 mvp;
   void main() {
-    gl_Position = mvp * vec4(vertex_pos, 1.0);
+    gl_Position = mvp * vec4(vertex_pos / 32.0, 1.0);
   }
 );
 
