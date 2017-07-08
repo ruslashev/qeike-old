@@ -97,14 +97,48 @@ void d3_portal::render_from_area(const glm::vec3 &position, int idx) {
 #endif
 }
 
+d3_surface::d3_surface(const std::vector<d3_vertex> &vertices
+    , const std::vector<unsigned int> &elements)
+  : _vbo(new array_buffer)
+  , _ebo(new element_array_buffer) {
+  _vbo->bind();
+  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertices[0])
+      , vertices.data(), GL_STATIC_DRAW);
+  _ebo->bind();
+  _ebo->upload(elements);
+  // _vbo->unbind();
+  // _ebo->unbind();
+  _num_elements = elements.size();
+}
+
+d3_surface::~d3_surface() {
+  // TODO: messy
+  delete _vbo;
+  delete _ebo;
+}
+
+void d3_surface::draw() const {
+  _vbo->bind();
+  _ebo->bind();
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE
+      , sizeof(d3_vertex), 0);
+  glDrawElements(GL_TRIANGLES, _num_elements, GL_UNSIGNED_INT, 0);
+  // _vbo.unbind();
+  // _ebo.unbind();
+}
+
 d3_area::d3_area(const std::string &n_name, int n_index)
   : name(n_name)
   , index(n_index) {
 }
 
-void d3_area::read_from_file(std::ifstream &file, d3map *f) {
+void d3_area::read_from_file(std::ifstream &file) {
   const int num_surfaces = proc_get_next_int(file);
   for (int i = 0; i < num_surfaces; ++i) {
+    std::vector<d3_vertex> vertices;
+    std::vector<unsigned int> elements;
+
     std::string texture_filename = proc_get_next_string(file) + ".tga";
 
     const int num_verts = proc_get_next_int(file)
@@ -119,19 +153,19 @@ void d3_area::read_from_file(std::ifstream &file, d3map *f) {
       v.normal.x = proc_get_next_float(file);
       v.normal.y = proc_get_next_float(file);
       v.normal.z = proc_get_next_float(file);
-      f->vertices.push_back(std::move(v));
+      vertices.push_back(std::move(v));
     }
     for (int j = 0; j < num_ind; ++j)
-      f->elements.push_back(f->ebo_size + proc_get_next_int(file));
+      elements.push_back(proc_get_next_int(file));
 
-    f->ebo_size += num_verts;
+    d3_surface *n_surf = new d3_surface(vertices, elements);
+    _surfaces.push_back(n_surf);
   }
 }
 
 void d3_area::draw(const glm::vec3 &position) const {
-  // for (size_t i = 0; i < _vbos.size(); ++i) {
-  //   glDrawElements(GL_TRIANGLES, _ebo_sizes[i], GL_UNSIGNED_INT, 0);
-  // }
+  for (const d3_surface *s : _surfaces)
+    s->draw();
   // for (d3_portal *p : portals)
   //   p->render_from_area(position, index);
 }
@@ -141,13 +175,12 @@ void d3map::_load_proc(const std::string &filename) {
   if (!ifs)
     die("failed to open \"%s\"", filename.c_str());
 
-  ebo_size = 0;
   std::string t;
   while (ifs >> t) {
     if (t == "model") {
       std::string name = proc_get_next_string(ifs);
       d3_area a(name, _areas.size());
-      a.read_from_file(ifs, this);
+      a.read_from_file(ifs);
       _areas.push_back(std::move(a));
     } else if (t == "interAreaPortals") {
       const int num_areas = proc_get_next_int(ifs),
@@ -224,12 +257,6 @@ d3map::d3map(const std::string &filename)
 
   this->_load_proc(filename + ".proc");
 
-  vbo.bind();
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(d3_vertex)
-      , vertices.data(), GL_STATIC_DRAW);
-  ebo.bind();
-  ebo.upload(elements);
-
   _sp.dont_use_this_prog();
 }
 
@@ -241,20 +268,11 @@ void d3map::draw(const glm::vec3 &position, const glm::mat4 &mvp
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  glEnableVertexAttribArray(_vertex_pos_attr);
-  glVertexAttribPointer(_vertex_pos_attr, 3, GL_FLOAT, GL_FALSE
-      , sizeof(d3_vertex), 0);
-
-  vbo.bind();
-  ebo.bind();
-  glDrawElements(GL_TRIANGLES, ebo_size, GL_UNSIGNED_INT, 0);
-
   // int start_area = _get_area_idx_by_pos(position);
   // if (start_area >= 0) {
     // position is in the void
-    // for (const d3_area &a : _areas) {
-    //   a.draw(position);
-    // }
+    for (const d3_area &a : _areas)
+      a.draw(position);
   // else
   //   _areas[-1 - start_area].draw(position);
 

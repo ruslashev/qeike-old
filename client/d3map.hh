@@ -26,6 +26,7 @@ struct d3_plane {
   bool in_front(const glm::vec3 &point);
 };
 
+// TODO rearrange classes
 class d3map;
 
 class d3_portal {
@@ -37,14 +38,26 @@ public:
   void render_from_area(const glm::vec3 &position, int idx);
 };
 
+class d3_surface {
+  array_buffer *_vbo;
+  element_array_buffer *_ebo;
+  int _num_elements;
+public:
+  d3_surface(const std::vector<d3_vertex> &vertices
+      , const std::vector<unsigned int> &elements);
+  ~d3_surface();
+  void draw() const;
+};
+
 class d3_area {
+  std::vector<d3_surface*> _surfaces;
 public:
   std::vector<d3_portal*> portals;
   std::string name;
   int index;
 
   d3_area(const std::string &n_name, int n_index);
-  void read_from_file(std::ifstream &file, d3map *f);
+  void read_from_file(std::ifstream &file);
   void draw(const glm::vec3 &position) const;
 };
 
@@ -64,12 +77,7 @@ class d3map {
   void _load_proc(const std::string &filename);
   int _get_area_idx_by_pos(const glm::vec3 &position);
 public:
-  array_buffer vbo;
-  element_array_buffer ebo;
-  std::vector<d3_vertex> vertices;
-  std::vector<unsigned int> elements;
-  unsigned int ebo_size;
-
+  void bind();
   void add_portal_to_area(d3_portal *p, int idx);
   int get_area_idx_by_name(const std::string &name); // TODO std::map
   d3map(const std::string &filename);
