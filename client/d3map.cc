@@ -2,19 +2,10 @@
 #include "utils.hh"
 #include "shaders.hh"
 #include <fstream>
-#include <sstream>
 #include <glm/gtc/type_ptr.hpp>
 
-void d3_plane::normalize() {
-  // TODO fastinvsqrt
-  float inv_length = 1.0f / glm::length(normal);
-  normal *= inv_length;
-  dist *= inv_length;
-}
-
 bool d3_plane::in_front(const glm::vec3 &point) {
-  return (point.x * normal.x + point.y * normal.y + point.z * normal.z + dist
-    > 0); // TODO glm::dot
+  return glm::dot(point, normal) + dist > 0;
 }
 
 std::string proc_get_next_value(std::ifstream &file) {
@@ -44,7 +35,8 @@ std::string proc_get_next_string(std::ifstream &file) {
 
 void d3_portal::read_from_file(std::ifstream &file, d3map *map) {
   const int num_points = proc_get_next_int(file)
-    , pos_model = proc_get_next_int(file), neg_model = proc_get_next_int(file);
+    , positive_model = proc_get_next_int(file)
+    , negative_model = proc_get_next_int(file);
   for (int i = 0; i < num_points; ++i) {
     glm::vec3 tmp;
     tmp.x = proc_get_next_float(file);
@@ -53,12 +45,10 @@ void d3_portal::read_from_file(std::ifstream &file, d3map *map) {
     _points.push_back(std::move(tmp));
   }
 
-  std::stringstream name_pos, name_neg;
-  name_pos << "_area" << pos_model;
-  _model_pos = map->get_model_idx_by_name(name_pos.str());
-  name_neg << "_area" << neg_model;
-  _model_neg = map->get_model_idx_by_name(name_neg.str());
-
+  std::string name_positive = "_area" + std::to_string(positive_model)
+    , name_negative = "_area" + std::to_string(negative_model);
+  _model_pos = map->get_model_idx_by_name(name_positive);
+  _model_neg = map->get_model_idx_by_name(name_negative);
   if (_model_pos >= 0)
     map->add_portal_to_model(this, _model_pos);
   if (_model_neg >= 0)
@@ -197,14 +187,12 @@ void d3map::_load_proc(const std::string &filename) {
         node.positive_child = proc_get_next_int(ifs);
         node.negative_child = proc_get_next_int(ifs);
         if (node.positive_child < 0) {
-          std::stringstream name;
-          name << "_area" << (-1 - node.positive_child);
-          node.positive_child = -1 - get_model_idx_by_name(name.str());
+          std::string name = "_area" + std::to_string(-1 - node.positive_child);
+          node.positive_child = -1 - get_model_idx_by_name(name);
         }
         if (node.negative_child < 0) {
-          std::stringstream name;
-          name << "_area" << (-1 - node.negative_child);
-          node.negative_child = -1 - get_model_idx_by_name(name.str());
+          std::string name = "_area" + std::to_string(-1 - node.negative_child);
+          node.negative_child = -1 - get_model_idx_by_name(name);
         }
         _nodes.push_back(std::move(node));
       }

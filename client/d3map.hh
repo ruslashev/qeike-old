@@ -11,7 +11,6 @@ public:
   d3_lexer(std::string filename);
 };
 
-// TODO space waste?
 struct d3_vertex {
   glm::vec3 pos;
   glm::vec2 texcoord;
@@ -22,7 +21,6 @@ struct d3_plane {
   glm::vec3 normal;
   float dist;
 
-  void normalize();
   bool in_front(const glm::vec3 &point);
 };
 
