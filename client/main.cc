@@ -339,7 +339,7 @@ static void draw(double alpha) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
   glm::mat4 projection = glm::perspective(glm::radians(fov), screen_aspect_ratio
-          , 0.1f, 100.f), view = cam->compute_view_mat();
+          , 0.1f, 10000.f), view = cam->compute_view_mat();
 
   if (update_frustum_culling)
     f.extract_planes(projection * view);

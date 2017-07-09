@@ -44,7 +44,7 @@ std::string proc_get_next_string(std::ifstream &file) {
 
 void d3_portal::read_from_file(std::ifstream &file, d3map *map) {
   const int num_points = proc_get_next_int(file)
-    , pos_area = proc_get_next_int(file), neg_area = proc_get_next_int(file);
+    , pos_model = proc_get_next_int(file), neg_model = proc_get_next_int(file);
   for (int i = 0; i < num_points; ++i) {
     glm::vec3 tmp;
     tmp.x = proc_get_next_float(file);
@@ -54,18 +54,18 @@ void d3_portal::read_from_file(std::ifstream &file, d3map *map) {
   }
 
   std::stringstream name_pos, name_neg;
-  name_pos << "_area" << pos_area;
-  _area_pos = map->get_area_idx_by_name(name_pos.str());
-  name_neg << "_area" << neg_area;
-  _area_neg = map->get_area_idx_by_name(name_neg.str());
+  name_pos << "_area" << pos_model;
+  _model_pos = map->get_model_idx_by_name(name_pos.str());
+  name_neg << "_area" << neg_model;
+  _model_neg = map->get_model_idx_by_name(name_neg.str());
 
-  if (_area_pos >= 0)
-    map->add_portal_to_area(this, _area_pos);
-  if (_area_neg >= 0)
-    map->add_portal_to_area(this, _area_neg);
+  if (_model_pos >= 0)
+    map->add_portal_to_model(this, _model_pos);
+  if (_model_neg >= 0)
+    map->add_portal_to_model(this, _model_neg);
 }
 
-void d3_portal::render_from_area(const glm::vec3 &position, int idx) {
+void d3_portal::render_from_model(const glm::vec3 &position, int idx) {
 #if 0
   if (!(_visible = check_visibility(camera)))
     return; // portal is outside frustrum
@@ -87,53 +87,49 @@ void d3_portal::render_from_area(const glm::vec3 &position, int idx) {
   if (min.y < m_transformed_min.y) min.y = m_transformed_min.y;
   if (max.y > m_transformed_max.y) max.y = m_transformed_max.y;
 
-  // render area if visible
+  // render model if visible
   if ((max.x > min.x) && (max.y > min.y)) {
-    if (index == m_area_pos)
-      m_scene->get_area(m_area_neg)->render(camera, min, max);
+    if (index == m_model_pos)
+      m_scene->get_model(m_model_neg)->render(camera, min, max);
     else
-      m_scene->get_area(m_area_pos)->render(camera, min, max);
+      m_scene->get_model(m_model_pos)->render(camera, min, max);
   }
 #endif
 }
 
 d3_surface::d3_surface(const std::vector<d3_vertex> &vertices
-    , const std::vector<unsigned int> &elements)
-  : _vbo(new array_buffer)
-  , _ebo(new element_array_buffer) {
-  _vbo->bind();
+    , const std::vector<unsigned int> &elements) {
+  _vao.bind();
+
+  array_buffer vbo;
+  vbo.bind();
   glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(vertices[0])
       , vertices.data(), GL_STATIC_DRAW);
-  _ebo->bind();
-  _ebo->upload(elements);
-  // _vbo->unbind();
-  // _ebo->unbind();
+
+  element_array_buffer ebo;
+  ebo.bind();
+  ebo.upload(elements);
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE
+      , sizeof(d3_vertex), 0);
+  glEnableVertexAttribArray(0);
+
+  _vao.unbind();
+
   _num_elements = elements.size();
 }
 
-d3_surface::~d3_surface() {
-  // TODO: messy
-  delete _vbo;
-  delete _ebo;
-}
-
 void d3_surface::draw() const {
-  _vbo->bind();
-  _ebo->bind();
-  glEnableVertexAttribArray(0);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE
-      , sizeof(d3_vertex), 0);
+  _vao.bind();
   glDrawElements(GL_TRIANGLES, _num_elements, GL_UNSIGNED_INT, 0);
-  // _vbo.unbind();
-  // _ebo.unbind();
 }
 
-d3_area::d3_area(const std::string &n_name, int n_index)
+d3_model::d3_model(const std::string &n_name, int n_index)
   : name(n_name)
   , index(n_index) {
 }
 
-void d3_area::read_from_file(std::ifstream &file) {
+void d3_model::read_from_file(std::ifstream &file) {
   const int num_surfaces = proc_get_next_int(file);
   for (int i = 0; i < num_surfaces; ++i) {
     std::vector<d3_vertex> vertices;
@@ -163,11 +159,11 @@ void d3_area::read_from_file(std::ifstream &file) {
   }
 }
 
-void d3_area::draw(const glm::vec3 &position) const {
+void d3_model::draw(const glm::vec3 &position) const {
   for (const d3_surface *s : _surfaces)
     s->draw();
   // for (d3_portal *p : portals)
-  //   p->render_from_area(position, index);
+  //   p->render_from_model(position, index);
 }
 
 void d3map::_load_proc(const std::string &filename) {
@@ -179,11 +175,11 @@ void d3map::_load_proc(const std::string &filename) {
   while (ifs >> t) {
     if (t == "model") {
       std::string name = proc_get_next_string(ifs);
-      d3_area a(name, _areas.size());
-      a.read_from_file(ifs);
-      _areas.push_back(std::move(a));
+      d3_model m(name, _models.size());
+      m.read_from_file(ifs);
+      _models.push_back(std::move(m));
     } else if (t == "interAreaPortals") {
-      const int num_areas = proc_get_next_int(ifs),
+      const int num_models = proc_get_next_int(ifs),
             num_portals = proc_get_next_int(ifs);
       for (int i = 0; i < num_portals; ++i) {
         d3_portal portal;
@@ -194,21 +190,21 @@ void d3map::_load_proc(const std::string &filename) {
       const int num_nodes = proc_get_next_int(ifs);
       for (int i = 0; i < num_nodes; ++i) {
         d3_node node;
+        node.plane.normal.z = proc_get_next_float(ifs);
         node.plane.normal.x = proc_get_next_float(ifs);
         node.plane.normal.y = proc_get_next_float(ifs);
-        node.plane.normal.z = proc_get_next_float(ifs);
         node.plane.dist = proc_get_next_float(ifs);
-        node.pos_child = proc_get_next_int(ifs);
-        node.neg_child = proc_get_next_int(ifs);
-        if (node.pos_child < 0) {
+        node.positive_child = proc_get_next_int(ifs);
+        node.negative_child = proc_get_next_int(ifs);
+        if (node.positive_child < 0) {
           std::stringstream name;
-          name << "_area" << (-1 - node.pos_child);
-          node.pos_child = -1 - get_area_idx_by_name(name.str());
+          name << "_area" << (-1 - node.positive_child);
+          node.positive_child = -1 - get_model_idx_by_name(name.str());
         }
-        if (node.neg_child < 0) {
+        if (node.negative_child < 0) {
           std::stringstream name;
-          name << "_area" << (-1 - node.neg_child);
-          node.neg_child = -1 - get_area_idx_by_name(name.str());
+          name << "_area" << (-1 - node.negative_child);
+          node.negative_child = -1 - get_model_idx_by_name(name.str());
         }
         _nodes.push_back(std::move(node));
       }
@@ -219,31 +215,31 @@ void d3map::_load_proc(const std::string &filename) {
   ifs.close();
 }
 
-int d3map::_get_area_idx_by_pos(const glm::vec3 &position) {
+int d3map::_get_model_idx_by_pos(const glm::vec3 &position) {
   if (!_nodes.size())
     return 0;
   d3_node *node = &_nodes[0];
   while (true)
     if (node->plane.in_front(position)) { // in front
-      if (node->pos_child > 0)
-        node = &_nodes[node->pos_child];
+      if (node->positive_child > 0)
+        node = &_nodes[node->positive_child];
       else
-        return node->pos_child;
+        return node->positive_child;
     } else { // behind
-      if (node->neg_child > 0)
-        node = &_nodes[node->neg_child];
+      if (node->negative_child > 0)
+        node = &_nodes[node->negative_child];
       else
-        return node->neg_child;
+        return node->negative_child;
     }
 }
 
-void d3map::add_portal_to_area(d3_portal *p, int idx) {
-  _areas[idx].portals.push_back(p);
+void d3map::add_portal_to_model(d3_portal *p, int idx) {
+  _models[idx].portals.push_back(p);
 }
 
-int d3map::get_area_idx_by_name(const std::string &name) {
-  for (size_t i = 0; i < _areas.size(); ++i)
-    if (_areas[i].name == name)
+int d3map::get_model_idx_by_name(const std::string &name) {
+  for (size_t i = 0; i < _models.size(); ++i)
+    if (_models[i].name == name)
       return i;
   return -1;
 }
@@ -268,13 +264,13 @@ void d3map::draw(const glm::vec3 &position, const glm::mat4 &mvp
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  // int start_area = _get_area_idx_by_pos(position);
-  // if (start_area >= 0) {
+  int start_model = _get_model_idx_by_pos(position);
+  if (start_model >= 0)
     // position is in the void
-    for (const d3_area &a : _areas)
-      a.draw(position);
-  // else
-  //   _areas[-1 - start_area].draw(position);
+    for (const d3_model &m : _models)
+      m.draw(position);
+  else
+    _models[-1 - start_model].draw(position);
 
   _sp.dont_use_this_prog();
 }
