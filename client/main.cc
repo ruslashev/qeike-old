@@ -341,10 +341,12 @@ static void draw(double alpha) {
   glm::mat4 projection = glm::perspective(glm::radians(fov), screen_aspect_ratio
           , 0.1f, 10000.f), view = cam->compute_view_mat();
 
-  if (update_frustum_culling)
+  if (update_frustum_culling) {
     f.extract_planes(projection * view);
+    f.position = cam->pos;
+  }
 
-  d->draw(cam->pos, projection * view, f);
+  d->draw(projection, view, f);
   // ad->draw(projection * view);
 }
 
