@@ -346,7 +346,6 @@ static void draw(double alpha) {
     f.position = cam->pos;
   }
 
-  d->draw(projection, view, f);
   // ad->draw(projection * view);
 }
 

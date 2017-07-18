@@ -2,6 +2,7 @@
 
 #include <cstdarg>
 #include <string>
+#include <fstream>
 
 #ifdef __PRETTY_FUNCTION__
 #define info() \
@@ -63,4 +64,36 @@ inline T clamp(T value, T min, T max) {
     return max;
   return value;
 }
+
+struct file_reader {
+  size_t length;
+  char *buffer;
+
+  file_reader()
+    : length(0)
+    , buffer(nullptr) {
+  }
+
+  file_reader(const std::string &filename) {
+    open(filename);
+  }
+
+  void open(const std::string &filename) {
+    // printf("filename=%s\n", filename.c_str());
+    std::ifstream ifs(filename, std::ios::binary);
+    assertf(ifs, "failed to open file \"%s\"", filename.c_str());
+
+    ifs.seekg(0, ifs.end);
+    length = ifs.tellg();
+    ifs.seekg(0, ifs.beg);
+    buffer = new char [length + 1];
+    ifs.read(buffer, length);
+    buffer[length] = 0;
+    ifs.close();
+  }
+
+  ~file_reader() {
+    delete[] buffer;
+  }
+};
 
