@@ -4,8 +4,30 @@
 
 namespace qkmath {
 
+const float C_PI = 3.14159265358979323846f
+  , C_INFINITY = 1e30f
+  , C_DEG2RAD  = C_PI / 180.f
+  , C_RAD2DEG  = 180.f / C_PI;
+
+#define DEG2RAD(a) ((a) * qkmath::C_DEG2RAD)
+#define RAD2DEG(a) ((a) * qkmath::C_RAD2DEG)
+
+inline float inv_sqrt(float x) {
+  return 1.f / sqrtf(x);
+}
+
+inline float sqrt(float x) {
+  return sqrtf(x);
+}
+
+inline float fabs(float x) {
+  int tmp = *reinterpret_cast<int*>(&x);
+  tmp &= 0x7FFFFFFF;
+  return *reinterpret_cast<float*>(&tmp);
+}
+
 inline bool float_eq(float a, float b, float epsilon = 1e-5) {
-  return (std::abs(a - b) < epsilon);
+  return (fabs(a - b) < epsilon);
 }
 
 inline float fastinvsqrt(float x) {
