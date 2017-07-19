@@ -1,5 +1,5 @@
 #include "vector.hh"
-
+#include "matrix.hh"
 
 idVec2::idVec2(void) {
 }
@@ -1428,75 +1428,6 @@ float *idVecX::ToFloatPtr(void) {
 }
 
 
-//===============================================================
-//
-//	idPolar3
-//
-//===============================================================
-
-class idPolar3 {
-public:
-  float			radius, theta, phi;
-
-  idPolar3(void);
-  explicit idPolar3(const float radius, const float theta, const float phi);
-
-  void			Set(const float radius, const float theta, const float phi);
-
-  float			operator[](const int index) const;
-  float &			operator[](const int index);
-  idPolar3		operator-() const;
-  idPolar3 &		operator=(const idPolar3 &a);
-
-  idVec3			ToVec3(void) const;
-};
-
-idPolar3::idPolar3(void) {
-}
-
-idPolar3::idPolar3(const float radius, const float theta, const float phi) {
-  assert(radius > 0);
-  this->radius = radius;
-  this->theta = theta;
-  this->phi = phi;
-}
-
-void idPolar3::Set(const float radius, const float theta, const float phi) {
-  assert(radius > 0);
-  this->radius = radius;
-  this->theta = theta;
-  this->phi = phi;
-}
-
-float idPolar3::operator[](const int index) const {
-  return (&radius)[ index ];
-}
-
-float &idPolar3::operator[](const int index) {
-  return (&radius)[ index ];
-}
-
-idPolar3 idPolar3::operator-() const {
-  return idPolar3(radius, -theta, -phi);
-}
-
-idPolar3 &idPolar3::operator=(const idPolar3 &a) {
-  radius = a.radius;
-  theta = a.theta;
-  phi = a.phi;
-  return *this;
-}
-
-idVec3 idPolar3::ToVec3(void) const {
-  float sp, cp, st, ct;
-  sp = sinf(phi);
-  cp = cosf(phi);
-  st = sinf(theta);
-  ct = cosf(theta);
-  return idVec3(cp * radius * ct, cp * radius * st, radius * sp);
-}
-
-
 idVec2 vec2_origin( 0.0f, 0.0f );
 idVec3 vec3_origin( 0.0f, 0.0f, 0.0f );
 idVec4 vec4_origin( 0.0f, 0.0f, 0.0f, 0.0f );
@@ -1614,7 +1545,6 @@ idAngles idVec3::ToAngles( void ) const {
 
 	return idAngles( -pitch, yaw, 0.0f );
 }
-#endif
 
 /*
 =============
@@ -1647,8 +1577,8 @@ idPolar3 idVec3::ToPolar( void ) const {
 	}
 	return idPolar3( qkmath::sqrt( x * x + y * y + z * z ), yaw, -pitch );
 }
+#endif
 
-#if 0
 /*
 =============
 idVec3::ToMat3
@@ -1674,7 +1604,6 @@ idMat3 idVec3::ToMat3( void ) const {
 
 	return mat;
 }
-#endif
 
 /*
 =============

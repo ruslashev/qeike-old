@@ -96,4 +96,3 @@ protected:
 	virtual bool	ReAllocate( int n, bool keep = false );
 };
 
-

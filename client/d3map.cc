@@ -87,18 +87,6 @@ void d3_portal::_transform_points(const glm::mat4 &projection) {
   for (const glm::vec3 &p : _points) {
     glm::vec2 projected;
     // TODO
-    if (qkmath::project_point(p, projection, 700, 525, projected)) {
-      glm::ivec2 projected_int = glm::ivec2(projected.x, projected.y);
-      if (projected_int.x > _transformed_max.x)
-        _transformed_max.x = projected_int.x;
-      if (projected_int.x < _transformed_min.x)
-        _transformed_min.x = projected_int.x;
-
-      if (projected_int.y > _transformed_max.y)
-        _transformed_max.y = projected_int.y;
-      if (projected_int.y < _transformed_min.y)
-        _transformed_min.y = projected_int.y;
-    }
   }
 }
 

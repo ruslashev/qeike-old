@@ -4,6 +4,9 @@
 #include "rotation.hh"
 #include "matrix.hh"
 
+class idRotation;
+class idMat4;
+
 class idQuat {
 public:
   float			x;

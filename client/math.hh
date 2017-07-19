@@ -7,7 +7,8 @@ namespace qkmath {
 const float C_PI = 3.14159265358979323846f
   , C_INFINITY = 1e30f
   , C_DEG2RAD  = C_PI / 180.f
-  , C_RAD2DEG  = 180.f / C_PI;
+  , C_RAD2DEG  = 180.f / C_PI
+  , C_FLT_EPSILON = 1.192092896e-07f;
 
 #define DEG2RAD(a) ((a) * qkmath::C_DEG2RAD)
 #define RAD2DEG(a) ((a) * qkmath::C_RAD2DEG)
@@ -55,6 +56,19 @@ inline void quat_get_angleaxis(const glm::quat &q, float *angle
   }
 }
 
+inline void sincos(float a, float &s, float &c) {
+  s = sinf(a);
+  c = cosf(a);
+}
+
+inline float acos(float a) {
+  if (a <= -1.0f)
+    return C_PI;
+  if (a >= 1.0f)
+    return 0.0f;
+  return acosf(a);
+}
+
 enum plane_side {
   PLANE_SIDE_IN_FRONT,
   PLANE_SIDE_BEHIND,
@@ -73,38 +87,6 @@ public:
   bool point_in_front_of_plane(const glm::vec3 &point, const float epsilon)
     const;
 };
-
-// TODO may be broken
-inline bool project_point(const glm::vec3 &point, const glm::mat4 &projection
-    , const int viewport_width, const int viewport_height
-    , glm::vec2 &projected_point) {
-  return project_point(glm::vec4(point, 1.f), projection, viewport_width
-      , viewport_height, projected_point);
-}
-
-// TODO may be broken
-inline bool project_point(const glm::vec4 &point, const glm::mat4 &projection
-    , const int viewport_width, const int viewport_height
-    , glm::vec2 &projected_point) {
-  glm::vec4 projected_point4 = projection * point;
-
-  if (float_eq(projected_point4.w, 0, 0.01)) {
-    projected_point.x = 0;
-    projected_point.y = 0;
-    return false;
-  }
-
-  projected_point4.x /= projected_point4.w;
-  projected_point4.y /= projected_point4.w;
-
-  projected_point4.x *= 0.5f;
-  projected_point4.y *= 0.5f;
-
-  projected_point.x = (projected_point4.x + 0.5f) * (float)viewport_width;
-  projected_point.y = (projected_point4.y + 0.5f) * (float)viewport_height;
-
-  return true;
-}
 
 };
 

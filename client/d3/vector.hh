@@ -4,6 +4,16 @@
 #include <cstring>
 #include "../math.hh"
 
+#define MAX_WORLD_COORD			( 128 * 1024 )
+#define MIN_WORLD_COORD			( -128 * 1024 )
+#define MAX_WORLD_SIZE			( MAX_WORLD_COORD - MIN_WORLD_COORD )
+
+#define FLOATSIGNBITSET(f)		((*(const unsigned int *)&(f)) >> 31)
+#define FLOATSIGNBITNOTSET(f)	((~(*(const unsigned int *)&(f))) >> 31)
+#define FLOATNOTZERO(f)			((*(const unsigned int *)&(f)) & ~(1<<31) )
+#define INTSIGNBITSET(i)		(((const unsigned int)(i)) >> 31)
+#define INTSIGNBITNOTSET(i)		((~((const unsigned int)(i))) >> 31)
+
 /*
    ===============================================================================
 
@@ -15,7 +25,6 @@
 #define VECTOR_EPSILON		0.001f
 
 class idAngles;
-class idPolar3;
 class idMat3;
 
 //===============================================================
@@ -138,7 +147,7 @@ public:
   float			ToYaw(void) const;
   float			ToPitch(void) const;
   idAngles		ToAngles(void) const;
-  idPolar3		ToPolar(void) const;
+  // idPolar3		ToPolar(void) const;
   idMat3			ToMat3(void) const;		// vector should be normalized
   const idVec2 &	ToVec2(void) const;
   idVec2 &		ToVec2(void);
