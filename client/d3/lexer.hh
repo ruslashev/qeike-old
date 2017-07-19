@@ -203,11 +203,11 @@ public:
   // returns the current filename
   const char * GetFileName( void );
   // get offset in script
-  const int  GetFileOffset( void );
+  int  GetFileOffset( void );
   // get file time
-  const time_t GetFileTime( void );
+  time_t GetFileTime( void );
   // returns the current line number
-  const int  GetLineNum( void );
+  int  GetLineNum( void );
   // print an error message
   void   Error( const char *str, ... );
   // print a warning message
@@ -218,7 +218,7 @@ public:
   // set the base folder to load files from
   static void  SetBaseFolder( const char *path );
 
-private:
+// private:
   int    loaded;     // set when a script file is loaded from file or memory
   idStr   filename;    // file name of the script
   int    allocated;    // true if buffer memory was allocated

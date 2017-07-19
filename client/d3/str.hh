@@ -2,7 +2,11 @@
 
 #include <cstring>
 #include <cstdarg>
+#include <cmath>
 #include "../utils.hh"
+
+#define PATHSEPERATOR_STR			"/"
+#define PATHSEPERATOR_CHAR			'/'
 
 const int STR_ALLOC_BASE   = 20;
 const int STR_ALLOC_GRAN   = 32;

@@ -4,15 +4,15 @@ const char *idLexer::GetFileName(void) {
   return idLexer::filename;
 }
 
-const int idLexer::GetFileOffset(void) {
+int idLexer::GetFileOffset(void) {
   return idLexer::script_p - idLexer::buffer;
 }
 
-const time_t idLexer::GetFileTime(void) {
+time_t idLexer::GetFileTime(void) {
   return idLexer::fileTime;
 }
 
-const int idLexer::GetLineNum(void) {
+int idLexer::GetLineNum(void) {
   return idLexer::line;
 }
 
