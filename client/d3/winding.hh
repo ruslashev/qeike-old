@@ -96,3 +96,43 @@ protected:
 	virtual bool	ReAllocate( int n, bool keep = false );
 };
 
+/*
+===============================================================================
+
+	idFixedWinding is a fixed buffer size winding not using
+	memory allocations.
+
+	When an operation would overflow the fixed buffer a warning
+	is printed and the operation is safely cancelled.
+
+===============================================================================
+*/
+
+#define	MAX_POINTS_ON_WINDING	64
+
+class idFixedWinding : public idWinding {
+
+public:
+					idFixedWinding( void );
+					explicit idFixedWinding( const int n );
+					explicit idFixedWinding( const idVec3 *verts, const int n );
+					explicit idFixedWinding( const idVec3 &normal, const float dist );
+					explicit idFixedWinding( const idPlane &plane );
+					explicit idFixedWinding( const idWinding &winding );
+					explicit idFixedWinding( const idFixedWinding &winding );
+	virtual			~idFixedWinding( void );
+
+	idFixedWinding &operator=( const idWinding &winding );
+
+	virtual void	Clear( void );
+
+					// splits the winding in a back and front part, 'this' becomes the front part
+					// returns a SIDE_?
+	int				Split( idFixedWinding *back, const idPlane &plane, const float epsilon = ON_EPSILON );
+
+protected:
+	idVec5			data[MAX_POINTS_ON_WINDING];	// point data
+
+	virtual bool	ReAllocate( int n, bool keep = false );
+};
+
