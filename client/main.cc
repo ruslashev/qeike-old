@@ -1,4 +1,4 @@
-#include "d3map.hh"
+#include "bsp.hh"
 #include "camera.hh"
 #include "frustum.hh"
 #include "ogl.hh"
@@ -11,7 +11,7 @@ static int move, strafe;
 // static axis_drawer *ad;
 static entity *cube_ent;
 static camera *cam;
-static d3map *d;
+static bsp *b;
 static bool wireframe = false, noclip = true, update_frustum_culling = true;
 static int movement_switch = 0;
 static frustum f;
@@ -30,7 +30,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  d = new d3map("mapz/d3/mars_city1/mars_city1");
+  b = new bsp("mapz/q3/q3dm6.bsp", 32.f, 15);
 
   s->lock_mouse();
 }
@@ -346,12 +346,13 @@ static void draw(double alpha) {
     f.position = cam->pos;
   }
 
+  b->draw(cam->pos, projection * view, f);
   // ad->draw(projection * view);
 }
 
 static void cleanup() {
   delete cam;
-  delete d;
+  delete b;
   // delete ad;
   delete cube_ent;
 }

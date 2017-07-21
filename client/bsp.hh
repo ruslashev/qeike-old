@@ -101,63 +101,6 @@ class bsp {
     std::vector<unsigned char> vecs;
   };
 
-  struct bsp_patch_plane {
-    glm::vec4 plane;
-    // signx + (signy << 1) + (signz << 2), used as lookup during collision
-    int sign_bits;
-  };
-
-  struct bsp_facet {
-    int surface_plane;
-    int n_borders; // 3 or four + 6 axial bevels + 4 or 3 * 4 edge bevels
-    int border_planes[4 + 6 + 16];
-    int border_inward[4 + 6 + 16];
-    bool border_no_adjust[4 + 6 + 16];
-  };
-
-  struct bsp_patchcollide {
-    bool valid;
-    glm::vec3 bounds[2];
-    int n_planes; // surface planes plus edge planes
-    bsp_patch_plane *planes;
-    int n_facets;
-    bsp_facet *facets;
-    // std::vector<bsp_patch_plane> patch_planes;
-    // std::vector<bsp_facet> facets;
-    bsp_patchcollide();
-    void clear_bounds();
-    void add_point_to_bounds(const glm::vec3 &v);
-  };
-
-#define MAX_GRID_SIZE 129
-  struct bsp_grid {
-    int width;
-    int height;
-    bool wrap_width;
-    bool wrap_height;
-    glm::vec3 points[MAX_GRID_SIZE][MAX_GRID_SIZE]; // [width][height]
-
-    void set_wrap_width();
-    void subdivide_columns();
-    void remove_degenerate_columns();
-    void transpose();
-  };
-
-  struct bsp_winding {
-    std::vector<glm::vec3> p;
-    int num_points; // can be less than p.size()
-
-    bsp_winding(int size);
-    void bounds(glm::vec3 & mins, glm::vec3 & maxs);
-  };
-
-  enum edge_name {
-    EN_TOP,
-    EN_RIGHT,
-    EN_BOTTOM,
-    EN_LEFT
-  };
-
   enum class trace_type {
     ray,
     sphere,
@@ -182,15 +125,7 @@ class bsp {
   std::vector<int> _visible_faces;
   std::vector<bsp_lightmap> _lightmaps;
   std::vector<GLuint> _lightmap_texture_ids;
-  std::vector<bsp_patchcollide> _patchcollides;
   bsp_visdata _visdata;
-
-#define MAX_PATCH_PLANES 2048
-#define MAX_FACETS 1024
-  int num_planes;
-  bsp_patch_plane planes[MAX_PATCH_PLANES];
-  int num_facets;
-  bsp_facet facets[MAX_FACETS];
 
   GLint _vertex_pos_attr, _lightmap_coord_attr, _mvp_mat_unif;
   shader_program _sp;
@@ -198,29 +133,10 @@ class bsp {
   element_array_buffer _ebo;
   vertex_array_object _vao;
 
-  void _load_file(const char *filename, float world_scale
-      , int tesselation_level);
+  void _load_file(const char *filename, int tesselation_level);
   void _create_patches(int tesselation_level);
   void _tesselate(int tesselation_level, int control_offset, int control_width
       , int voff, int eoff);
-
-  void _create_patch_collides();
-  void _create_patch_collide_from_grid(bsp_grid *grid
-      , bsp::bsp_patchcollide *pf);
-  int find_plane( glm::vec3 p1, glm::vec3 p2, glm::vec3 p3 );
-  int _edge_plane_for_num(bsp_grid *grid
-      , int grid_planes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j, int k);
-  void set_border_inward(bsp_facet *facet, bsp_grid *grid
-      , int grid_planes[MAX_GRID_SIZE][MAX_GRID_SIZE][2], int i, int j
-      , int which);
-  int point_on_plane_side(const glm::vec3 &p, int plane_num);
-  bool validate_facet( bsp_facet *facet );
-  bsp_winding *base_winding_for_plane (glm::vec3 normal, float dist);
-  void chop_winding_in_place(bsp_winding **inout, const glm::vec3 &normal
-      , float dist, float epsilon);
-  void add_facet_bevels(bsp_facet *facet);
-  int plane_equal(bsp_patch_plane *p, glm::vec4 plane, int *flipped);
-  int find_plane2(const glm::vec4 &plane, int *flipped);
 
   int _find_leaf(glm::vec3 position);
   int _cluster_visible(int vis_cluster, int test_cluster);
@@ -236,8 +152,6 @@ class bsp {
       , const glm::vec3 &input_end);
   void _trace_leaf(trace_result *tr, const trace_description &td
       , const bsp_leaf *l, const glm::vec3 &start, const glm::vec3 &end);
-  void _trace_patch(trace_result *tr, const trace_description &td
-      , bsp_patchcollide *p, glm::vec3 input_start, glm::vec3 input_end);
   bool _check_facet_plane(glm::vec3 plane, glm::vec3 start, glm::vec3 end
       , float *enter_frac, float *leave_frac, bool *hit);
 public:

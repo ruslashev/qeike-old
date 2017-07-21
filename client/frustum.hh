@@ -4,15 +4,6 @@
 #include <glm/vec3.hpp>
 #include "math.hh"
 
-enum frustum_plane {
-  FRUSTUM_PLANE_LEFT = 0,
-  FRUSTUM_PLANE_RIGHT,
-  FRUSTUM_PLANE_UP,
-  FRUSTUM_PLANE_DOWN,
-  FRUSTUM_PLANE_NEAR,
-  FRUSTUM_PLANE_FAR
-};
-
 class frustum {
   qkmath::plane _planes[6];
 
