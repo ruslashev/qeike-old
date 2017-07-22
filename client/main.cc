@@ -1,6 +1,6 @@
-#include "bsp.hh"
 #include "camera.hh"
 #include "frustum.hh"
+#include "map.hh"
 #include "ogl.hh"
 #include "screen.hh"
 #include "shaders.hh"
@@ -11,7 +11,7 @@ static int move, strafe;
 // static axis_drawer *ad;
 static entity *cube_ent;
 static camera *cam;
-static bsp *b;
+static map *m;
 static bool wireframe = false, noclip = true, update_frustum_culling = true;
 static int movement_switch = 0;
 static frustum f;
@@ -30,7 +30,7 @@ static void graphics_load(screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new bsp("mapz/q3/q3dm6.bsp", 32.f, 15);
+  m = new map("mapz/qk/lvl.qkm");
 
   s->lock_mouse();
 }
@@ -346,13 +346,13 @@ static void draw(double alpha) {
     f.position = cam->pos;
   }
 
-  b->draw(cam->pos, projection * view, f);
+  m->draw(projection * view);
   // ad->draw(projection * view);
 }
 
 static void cleanup() {
   delete cam;
-  delete b;
+  delete m;
   // delete ad;
   delete cube_ent;
 }
