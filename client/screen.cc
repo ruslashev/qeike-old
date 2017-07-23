@@ -32,6 +32,7 @@ screen::screen(const std::string &n_title, int n_window_width
 
 screen::~screen() {
   SDL_GL_DeleteContext(_gl_context);
+  SDL_DestroyWindow(_window);
   SDL_Quit();
 }
 
