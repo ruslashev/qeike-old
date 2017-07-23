@@ -3,11 +3,7 @@
 #define GLEW_STATIC
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
-#include <queue>
 #include <string>
-
-struct key_binder {
-};
 
 class screen {
   SDL_Window *_window;
@@ -16,6 +12,7 @@ class screen {
 public:
   int window_width, window_height;
   bool running;
+
   screen(const std::string &n_title, int n_window_width, int n_window_height);
   ~screen();
   void mainloop(void (*load_cb)(screen*)

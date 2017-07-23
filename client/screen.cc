@@ -7,7 +7,8 @@ screen::screen(const std::string &n_title, int n_window_width
   : _title(n_title)
   , window_width(n_window_width)
   , window_height(n_window_height) {
-  SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
+  assertf(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0
+      , "failed to init sdl: %s", SDL_GetError());
 
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
