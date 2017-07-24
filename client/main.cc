@@ -70,7 +70,7 @@ static void mouse_motion_event(float xrel, float yrel, int x, int y) {
   cam->update_view_angles(xrel, yrel);
 }
 
-static void mouse_button_event(int button, bool down) {
+static void mouse_button_event(int button, bool down, int x, int y) {
 }
 
 static void update(double dt, double t, screen *s) {

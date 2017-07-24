@@ -5,6 +5,8 @@
 screen::screen(const std::string &n_title, int n_window_width
     , int n_window_height)
   : _title(n_title)
+  , _pre_lock_mouse_x(n_window_width / 2)
+  , _pre_lock_mouse_y(n_window_height / 2)
   , window_width(n_window_width)
   , window_height(n_window_height) {
   assertf(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0
@@ -53,7 +55,7 @@ static char sdlkey_to_char(const SDL_Keycode &kc) {
 void screen::mainloop(void (*load_cb)(screen*)
     , void (*key_event_cb)(char, bool)
     , void (*mouse_motion_event_cb)(float, float, int, int)
-    , void (*mouse_button_event_cb)(int, bool)
+    , void (*mouse_button_event_cb)(int, bool, int, int)
     , void (*update_cb)(double, double, screen*)
     , void (*draw_cb)(double)
     , void (*cleanup_cb)(void)) {
@@ -100,7 +102,8 @@ void screen::mainloop(void (*load_cb)(screen*)
               case SDL_BUTTON_X2:     button = 5; break;
               default:                button = -1;
             }
-            mouse_button_event_cb(button, sdl_event.type == SDL_MOUSEBUTTONDOWN);
+            mouse_button_event_cb(button, sdl_event.type == SDL_MOUSEBUTTONDOWN
+                , sdl_event.motion.x, sdl_event.motion.y);
           }
       }
 
@@ -140,11 +143,13 @@ void screen::mainloop(void (*load_cb)(screen*)
 }
 
 void screen::lock_mouse() {
+  SDL_GetMouseState(&_pre_lock_mouse_x, &_pre_lock_mouse_y);
   SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
 void screen::unlock_mouse() {
   SDL_SetRelativeMouseMode(SDL_FALSE);
+  SDL_WarpMouseInWindow(_window, _pre_lock_mouse_x, _pre_lock_mouse_y);
 }
 
 inline double screen::get_time_in_seconds() {
