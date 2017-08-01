@@ -1,9 +1,9 @@
 #include "camera.hh"
-#include "frustum.hh"
-#include "ogl.hh"
-#include "screen.hh"
-#include "shaders.hh"
-#include "utils.hh"
+#include "../engine/frustum.hh"
+#include "../engine/ogl.hh"
+#include "../engine/screen.hh"
+#include "../engine/shaders.hh"
+#include "../engine/utils.hh"
 
 static float fov = 60, screen_aspect_ratio;
 static int move, strafe;

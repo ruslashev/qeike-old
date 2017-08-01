@@ -65,6 +65,7 @@ inline T clamp(T value, T min, T max) {
   return value;
 }
 
+// TODO read to std::vector
 struct file_reader {
   size_t length;
   char *buffer;

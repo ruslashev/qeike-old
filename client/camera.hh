@@ -1,6 +1,6 @@
 #pragma once
 
-#include "entity.hh"
+#include "../engine/entity.hh"
 #include <glm/gtc/matrix_transform.hpp>
 
 class camera {

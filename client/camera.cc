@@ -1,6 +1,6 @@
 #include "camera.hh"
-#include "utils.hh"
 #include "config.hh"
+#include "../engine/utils.hh"
 
 camera::camera(entity *n_entity_attached_to)
   : entity_attached_to(n_entity_attached_to)

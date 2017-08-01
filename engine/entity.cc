@@ -1,6 +1,5 @@
 #include "entity.hh"
 #include "math.hh"
-#include "config.hh"
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
