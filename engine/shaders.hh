@@ -1,5 +1,7 @@
 #include "utils.hh"
 
+namespace qke {
+
 namespace shaders {
 
 static const char *light_vert = _glsl(
@@ -95,6 +97,8 @@ static const char *colored_mesh_frag = _glsl(
     gl_FragColor = vec4(vertex_color_f, 1.0);
   }
 );
+
+};
 
 };
 

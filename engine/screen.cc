@@ -2,6 +2,8 @@
 #include "utils.hh"
 #include <chrono>
 
+using namespace qke;
+
 screen::screen(const std::string &n_title, int n_window_width
     , int n_window_height)
   : _title(n_title)

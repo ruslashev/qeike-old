@@ -2,29 +2,23 @@
 
 #include <glm/gtc/quaternion.hpp>
 
-namespace qkmath {
+namespace qke {
 
-const float C_PI = 3.14159265358979323846f
-  , C_INFINITY = 1e30f
-  , C_DEG2RAD  = C_PI / 180.f
-  , C_RAD2DEG  = 180.f / C_PI
-  , C_FLT_EPSILON = 1.192092896e-07f;
+namespace math {
 
-#define DEG2RAD(a) ((a) * qkmath::C_DEG2RAD)
-#define RAD2DEG(a) ((a) * qkmath::C_RAD2DEG)
+// const float C_PI = 3.14159265358979323846f
+//   , C_INFINITY = 1e30f
+//   , C_DEG2RAD  = C_PI / 180.f
+//   , C_RAD2DEG  = 180.f / C_PI
+//   , C_FLT_EPSILON = 1.192092896e-07f;
 
-inline float inv_sqrt(float x) {
-  return 1.f / sqrtf(x);
-}
-
-inline float sqrt(float x) {
-  return sqrtf(x);
-}
+// #define DEG2RAD(a) ((a) * qkmath::C_DEG2RAD)
+// #define RAD2DEG(a) ((a) * qkmath::C_RAD2DEG)
 
 template<class T> inline T max(T x, T y) { return (x > y) ? x : y; }
 template<class T> inline T min(T x, T y) { return (x < y) ? x : y; }
 
-inline float fabs(float x) {
+inline float abs(float x) {
   int tmp = *reinterpret_cast<int*>(&x);
   tmp &= 0x7FFFFFFF;
   return *reinterpret_cast<float*>(&tmp);
@@ -56,36 +50,38 @@ inline void quat_get_angleaxis(const glm::quat &q, float *angle
   }
 }
 
-inline void sincos(float a, float &s, float &c) {
-  s = sinf(a);
-  c = cosf(a);
-}
+// inline void sincos(float a, float &s, float &c) {
+//   s = sinf(a);
+//   c = cosf(a);
+// }
 
-inline float acos(float a) {
-  if (a <= -1.0f)
-    return C_PI;
-  if (a >= 1.0f)
-    return 0.0f;
-  return acosf(a);
-}
-
-enum plane_side {
-  PLANE_SIDE_IN_FRONT,
-  PLANE_SIDE_BEHIND,
-  PLANE_SIDE_INTERSECTS,
-};
+// inline float acos(float a) {
+//   if (a <= -1.0f)
+//     return C_PI;
+//   if (a >= 1.0f)
+//     return 0.0f;
+//   return acosf(a);
+// }
 
 class plane {
 public:
+  enum class side {
+    in_front,
+    behind,
+    intersects,
+  };
+
   glm::vec3 normal;
   float distance;
 
   void fast_normalize();
   void fit_through_point(const glm::vec3 &point);
   float distance_to_point(const glm::vec3 &point) const;
-  plane_side plane_side_point(const glm::vec3 &point, const float epsilon) const;
+  side plane_side_point(const glm::vec3 &point, const float epsilon) const;
   bool point_in_front_of_plane(const glm::vec3 &point, const float epsilon)
     const;
+};
+
 };
 
 };

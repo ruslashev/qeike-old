@@ -2,6 +2,8 @@
 #include "shaders.hh"
 #include <glm/gtc/type_ptr.hpp>
 
+using namespace qke;
+
 void gl_error_description(GLenum err) {
   switch (err) {
     case GL_INVALID_ENUM:

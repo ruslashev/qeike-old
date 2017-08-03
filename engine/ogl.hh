@@ -7,6 +7,8 @@
 #include <cstring>
 #include <glm/mat4x4.hpp>
 
+namespace qke {
+
 void gl_error_description(GLenum err);
 
 #define gl_check_errors() do { \
@@ -120,5 +122,7 @@ class axis_drawer {
 public:
   axis_drawer();
   void draw(const glm::mat4 &mvp);
+};
+
 };
 

@@ -3,6 +3,11 @@
 #include <cstdarg>
 #include <string>
 #include <fstream>
+#include <vector>
+
+namespace qke {
+
+namespace utils {
 
 #ifdef __PRETTY_FUNCTION__
 #define info() \
@@ -65,36 +70,17 @@ inline T clamp(T value, T min, T max) {
   return value;
 }
 
-// TODO read to std::vector
-struct file_reader {
-  size_t length;
-  char *buffer;
+inline void read_file_to_vector(const std::string &filename
+    , std::vector<char> &dest) {
+  std::ifstream ifs(filename, std::ios::binary);
+  assertf(ifs, "failed to open file \"%s\"", filename.c_str());
+  ifs.seekg(0, ifs.end);
+  size_t length = ifs.tellg();
+  ifs.seekg(0, ifs.beg);
+  dest.resize(length);
+  ifs.read(dest.data(), length);
+  ifs.close();
+}
 
-  file_reader()
-    : length(0)
-    , buffer(nullptr) {
-  }
-
-  file_reader(const std::string &filename) {
-    open(filename);
-  }
-
-  void open(const std::string &filename) {
-    // printf("filename=%s\n", filename.c_str());
-    std::ifstream ifs(filename, std::ios::binary);
-    assertf(ifs, "failed to open file \"%s\"", filename.c_str());
-
-    ifs.seekg(0, ifs.end);
-    length = ifs.tellg();
-    ifs.seekg(0, ifs.beg);
-    buffer = new char [length + 1];
-    ifs.read(buffer, length);
-    buffer[length] = 0;
-    ifs.close();
-  }
-
-  ~file_reader() {
-    delete[] buffer;
-  }
 };
 

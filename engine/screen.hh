@@ -5,6 +5,8 @@
 #include <SDL2/SDL.h>
 #include <string>
 
+namespace qke {
+
 class screen {
   SDL_Window *_window;
   SDL_GLContext _gl_context;
@@ -26,5 +28,7 @@ public:
   void lock_mouse();
   void unlock_mouse();
   double get_time_in_seconds();
+};
+
 };
 
