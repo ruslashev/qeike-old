@@ -2,7 +2,7 @@
 #include "shaders.hh"
 #include <glm/gtc/type_ptr.hpp>
 
-using namespace qke;
+namespace qke {
 
 void gl_error_description(GLenum err) {
   switch (err) {
@@ -433,4 +433,6 @@ void axis_drawer::draw(const glm::mat4 &mvp) {
   glDrawElements(GL_LINES, 6, GL_UNSIGNED_SHORT, 0);
   _vao.unbind();
 }
+
+};
 

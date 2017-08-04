@@ -2,7 +2,7 @@
 #include "utils.hh"
 #include <chrono>
 
-using namespace qke;
+namespace qke {
 
 screen::screen(const std::string &n_title, int n_window_width
     , int n_window_height)
@@ -157,4 +157,6 @@ void screen::unlock_mouse() {
 inline double screen::get_time_in_seconds() {
   return SDL_GetTicks() / 1000.;
 }
+
+};
 

@@ -1,4 +1,5 @@
 #include "camera.hh"
+#include "load_world.hh"
 #include "../engine/frustum.hh"
 #include "../engine/ogl.hh"
 #include "../engine/screen.hh"
@@ -7,33 +8,29 @@
 
 static float fov = 60, screen_aspect_ratio;
 static int move, strafe;
-// static axis_drawer *ad;
 static entity *cube_ent;
 static camera *cam;
 static bool wireframe = false, noclip = true, update_frustum_culling = true;
 static int movement_switch = 0;
-static frustum f;
+static qke::frustum f;
 
-static void graphics_load(screen *s) {
+static void graphics_load(qke::screen *s) {
   screen_aspect_ratio = static_cast<float>(s->window_width)
       / static_cast<float>(s->window_height);
-
-  // ad = new axis_drawer;
 
   cube_ent = new entity(glm::vec3(1, 2, 5));
   cam = new camera(cube_ent);
 
   glEnable(GL_DEPTH_TEST);
-  // glEnable(GL_CULL_FACE);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  // b = new bsp("mapz/q3/q3dm6.bsp", 15);
+  load_world("mapz/curvy_castle");
 
   s->lock_mouse();
 }
 
-static void load(screen *s) {
+static void load(qke::screen *s) {
   graphics_load(s);
 }
 
@@ -71,48 +68,21 @@ static void mouse_motion_event(float xrel, float yrel, int x, int y) {
 static void mouse_button_event(int button, bool down, int x, int y) {
 }
 
-static void update(double dt, double t, screen *s) {
+static void update(double dt, double t, qke::screen *s) {
   cube_ent->update(dt, t);
   if (noclip) {
     cam->update_position(dt, move, strafe);
     cam->vel = glm::vec3(0);
   } else {
-    auto accelerate = [](glm::vec3 prev_velocity, glm::vec3 wish_dir, float dtf) {
-      float wish_speed = 200.f, accel = 1.f;
-#if 0
-      if (movement_switch == 0) {
-        // puts("Q3 movement");
-        float proj_vel = glm::dot(prev_velocity, wish_dir)
-          , accel_speed = accel * dtf * wish_speed;
-        if (accel_speed > wish_speed - proj_vel)
-          accel_speed = wish_speed - proj_vel;
-        return prev_velocity + accel_speed * wish_dir;
-      } else if (movement_switch == 1) {
-        // puts("Article movement");
-        float proj_vel = glm::dot(prev_velocity, wish_dir)
-          , accel_speed = accel * dtf;
-        if (accel_speed > wish_speed - proj_vel)
-          accel_speed = wish_speed - proj_vel;
-        return prev_velocity + accel_speed * wish_dir;
-      } else if (movement_switch == 2) {
-#endif
-        // puts("Q3 fixed movement");
-        glm::vec3 wish_velocity = wish_dir * wish_speed
-          , push_vec = wish_velocity - prev_velocity;
-        if (glm::length(push_vec) < 0.1f)
-          return prev_velocity;
-        glm::vec3 push_dir = glm::normalize(push_vec);
-        float push_len = glm::length(push_dir)
-          , can_push = accel * dtf * wish_speed;
-        if (can_push > push_len)
-          can_push = push_len;
-        return prev_velocity + push_dir * can_push;
-#if 0
-      } else
-        return prev_velocity;
-#endif
+    auto accelerate = [](const glm::vec3 &prev_velocity
+        , const glm::vec3 &wish_dir, float dtf) {
+      const float wish_speed = 200.f, accel = 1.f;
+      float proj_vel = glm::dot(prev_velocity, wish_dir)
+        , accel_speed = accel * dtf * wish_speed;
+      if (accel_speed > wish_speed - proj_vel)
+        accel_speed = wish_speed - proj_vel;
+      return prev_velocity + accel_speed * wish_dir;
     };
-
     /* vec3 old_vel = vel;
        vel += accel * dt;
        pos += (old_vel + vel) * 0.5 * dt;
@@ -138,8 +108,6 @@ static void draw(double alpha) {
     f.extract_planes(projection * view);
     f.position = cam->pos;
   }
-
-  // ad->draw(projection * view);
 }
 
 static void cleanup() {
@@ -149,7 +117,7 @@ static void cleanup() {
 
 int main() {
   try {
-    screen s("qeike", 700, 525);
+    qke::screen s("qeike", 700, 525);
 
     s.mainloop(load, key_event, mouse_motion_event, mouse_button_event, update
         , draw, cleanup);

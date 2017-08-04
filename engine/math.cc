@@ -1,6 +1,6 @@
 #include "math.hh"
 
-using namespace qke::math;
+namespace qke::math {
 
 void plane::fast_normalize() {
   const float normal_inverse_length = fastinvsqrt(normal.x * normal.x
@@ -33,4 +33,6 @@ bool plane::point_in_front_of_plane(const glm::vec3 &point
     , const float epsilon) const {
   return plane_side_point(point, epsilon) == side::in_front;
 }
+
+};
 

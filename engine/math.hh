@@ -18,7 +18,7 @@ namespace math {
 template<class T> inline T max(T x, T y) { return (x > y) ? x : y; }
 template<class T> inline T min(T x, T y) { return (x < y) ? x : y; }
 
-inline float abs(float x) {
+inline float fabs(float x) {
   int tmp = *reinterpret_cast<int*>(&x);
   tmp &= 0x7FFFFFFF;
   return *reinterpret_cast<float*>(&tmp);

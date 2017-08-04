@@ -2,7 +2,7 @@
 #include <glm/gtc/matrix_access.hpp>
 #include "math.hh"
 
-using namespace qke;
+namespace qke {
 
 void frustum::_extract_plane(size_t plane_idx, const glm::mat4 &mvp, int row) {
   const int scale = (row < 0) ? -1 : 1;
@@ -52,4 +52,6 @@ bool frustum::point_in_front_of_plane(int plane_idx, const glm::vec3 &point)
   const {
   return _planes[plane_idx].point_in_front_of_plane(point, 0.1f);
 }
+
+};
 
