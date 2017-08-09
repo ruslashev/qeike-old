@@ -1,5 +1,5 @@
 #include "camera.hh"
-#include "load_world.hh"
+#include "../engine/bsp.hh"
 #include "../engine/frustum.hh"
 #include "../engine/ogl.hh"
 #include "../engine/screen.hh"
@@ -12,6 +12,7 @@ static entity *cube_ent;
 static camera *cam;
 static bool wireframe = false, noclip = true, update_frustum_culling = true;
 static int movement_switch = 0;
+static qke::bsp *b;
 static qke::frustum f;
 
 static void graphics_load(qke::screen *s) {
@@ -25,7 +26,7 @@ static void graphics_load(qke::screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  load_world("mapz/curvy_castle");
+  b = new qke::bsp("mapz/q3/q3dm6.bsp", 15);
 
   s->lock_mouse();
 }
@@ -108,9 +109,12 @@ static void draw(double alpha) {
     f.extract_planes(projection * view);
     f.position = cam->pos;
   }
+
+  b->draw(cam->pos, projection * view);
 }
 
 static void cleanup() {
+  delete b;
   delete cam;
   delete cube_ent;
 }
