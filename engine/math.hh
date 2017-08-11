@@ -6,22 +6,22 @@ namespace qke {
 
 namespace math { // TODO remove TODO or not?
 
-// const float C_PI = 3.14159265358979323846f
-//   , C_INFINITY = 1e30f
-//   , C_DEG2RAD  = C_PI / 180.f
-//   , C_RAD2DEG  = 180.f / C_PI
-//   , C_FLT_EPSILON = 1.192092896e-07f;
+const float C_PI = 3.1415926535897932384626433832795f
+  , C_INFINITY = 1e30f
+  , C_PI_DIV_180  = C_PI / 180.f
+  , C_180_DIV_PI  = 180.f / C_PI
+  , C_FLT_EPSILON = 1.192092896e-07f;
 
-// #define DEG2RAD(a) ((a) * qkmath::C_DEG2RAD)
-// #define RAD2DEG(a) ((a) * qkmath::C_RAD2DEG)
+inline float deg2rad(float deg) { return deg * C_PI_DIV_180; }
+inline float rad2deg(float rad) { return rad * C_180_DIV_PI; }
 
-template<class T> inline T max(T x, T y) { return (x > y) ? x : y; }
-template<class T> inline T min(T x, T y) { return (x < y) ? x : y; }
+// template<class T> inline T max(T x, T y) { return (x > y) ? x : y; }
+// template<class T> inline T min(T x, T y) { return (x < y) ? x : y; }
 
 inline float fabs(float x) {
-  int tmp = *reinterpret_cast<int*>(&x);
-  tmp &= 0x7FFFFFFF;
-  return *reinterpret_cast<float*>(&tmp);
+  int i = *(int*)(&x);
+  i &= 0x7FFFFFFF;
+  return *(float*)(&i);
 }
 
 inline bool float_eq(float a, float b, float epsilon = 1e-5) {
@@ -49,19 +49,6 @@ inline void quat_get_angleaxis(const glm::quat &q, float *angle
     *axis = glm::vec3(1, 0, 0);
   }
 }
-
-// inline void sincos(float a, float &s, float &c) {
-//   s = sinf(a);
-//   c = cosf(a);
-// }
-
-// inline float acos(float a) {
-//   if (a <= -1.0f)
-//     return C_PI;
-//   if (a >= 1.0f)
-//     return 0.0f;
-//   return acosf(a);
-// }
 
 class plane {
 public:

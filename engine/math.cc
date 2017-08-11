@@ -5,9 +5,7 @@ namespace qke::math {
 void plane::fast_normalize() {
   const float normal_inverse_length = fastinvsqrt(normal.x * normal.x
       + normal.y * normal.y + normal.z * normal.z);
-  normal.x *= normal_inverse_length;
-  normal.y *= normal_inverse_length;
-  normal.z *= normal_inverse_length;
+  normal *= normal_inverse_length;
   distance *= normal_inverse_length;
 }
 
