@@ -4,7 +4,7 @@
 
 namespace qke {
 
-namespace math {
+namespace math { // TODO remove TODO or not?
 
 // const float C_PI = 3.14159265358979323846f
 //   , C_INFINITY = 1e30f

@@ -1,5 +1,5 @@
 #include "camera.hh"
-#include "../engine/bsp.hh"
+#include "../engine/d3map.hh"
 #include "../engine/frustum.hh"
 #include "../engine/ogl.hh"
 #include "../engine/screen.hh"
@@ -12,7 +12,7 @@ static entity *cube_ent;
 static camera *cam;
 static bool wireframe = false, noclip = true, update_frustum_culling = true;
 static int movement_switch = 0;
-static qke::bsp *b;
+static qke::d3map *d;
 static qke::frustum f;
 
 static void graphics_load(qke::screen *s) {
@@ -26,7 +26,7 @@ static void graphics_load(qke::screen *s) {
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
-  b = new qke::bsp("mapz/q3/q3dm6.bsp", 15);
+  d = new qke::d3map("mapz/d3/mars_city1/mars_city1");
 
   s->lock_mouse();
 }
@@ -110,11 +110,11 @@ static void draw(double alpha) {
     f.position = cam->pos;
   }
 
-  b->draw(cam->pos, projection * view);
+  d->draw(cam->pos, projection * view, f);
 }
 
 static void cleanup() {
-  delete b;
+  delete d;
   delete cam;
   delete cube_ent;
 }
