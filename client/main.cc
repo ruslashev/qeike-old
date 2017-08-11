@@ -15,24 +15,27 @@ static int movement_switch = 0;
 static qke::d3map *d;
 static qke::frustum f;
 
-static void graphics_load(qke::screen *s) {
-  screen_aspect_ratio = static_cast<float>(s->window_width)
-      / static_cast<float>(s->window_height);
+qke::screen *g_screen = new qke::screen("qeike", 700, 525);
+
+static void graphics_load() {
+  screen_aspect_ratio = (float)g_screen->get_window_width()
+      / (float)g_screen->get_window_height();
 
   cube_ent = new entity(glm::vec3(1, 2, 5));
   cam = new camera(cube_ent);
 
   glEnable(GL_DEPTH_TEST);
+  glEnable(GL_SCISSOR_TEST);
 
   glClearColor(0.051f, 0.051f, 0.051f, 1);
 
   d = new qke::d3map("mapz/d3/mars_city1/mars_city1");
 
-  s->lock_mouse();
+  g_screen->lock_mouse();
 }
 
-static void load(qke::screen *s) {
-  graphics_load(s);
+static void load() {
+  graphics_load();
 }
 
 static void key_event(char key, bool down) {
@@ -69,7 +72,7 @@ static void mouse_motion_event(float xrel, float yrel, int x, int y) {
 static void mouse_button_event(int button, bool down, int x, int y) {
 }
 
-static void update(double dt, double t, qke::screen *s) {
+static void update(double dt, double t) {
   cube_ent->update(dt, t);
   if (noclip) {
     cam->update_position(dt, move, strafe);
@@ -121,9 +124,7 @@ static void cleanup() {
 
 int main() {
   try {
-    qke::screen s("qeike", 700, 525);
-
-    s.mainloop(load, key_event, mouse_motion_event, mouse_button_event, update
+    g_screen->mainloop(load, key_event, mouse_motion_event, mouse_button_event, update
         , draw, cleanup);
   } catch (const std::exception &e) {
     die("exception exit: %s", e.what());

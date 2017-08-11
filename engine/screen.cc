@@ -9,8 +9,8 @@ screen::screen(const std::string &n_title, int n_window_width
   : _title(n_title)
   , _pre_lock_mouse_x(n_window_width / 2)
   , _pre_lock_mouse_y(n_window_height / 2)
-  , window_width(n_window_width)
-  , window_height(n_window_height) {
+  , _window_width(n_window_width)
+  , _window_height(n_window_height) {
   assertf(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0
       , "failed to init sdl: %s", SDL_GetError());
 
@@ -18,7 +18,7 @@ screen::screen(const std::string &n_title, int n_window_width
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 
   _window = SDL_CreateWindow(_title.c_str(), SDL_WINDOWPOS_CENTERED
-      , SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL);
+      , SDL_WINDOWPOS_CENTERED, _window_width, _window_height, SDL_WINDOW_OPENGL);
 
   _gl_context = SDL_GL_CreateContext(_window);
 
@@ -54,14 +54,14 @@ static char sdlkey_to_char(const SDL_Keycode &kc) {
   }
 }
 
-void screen::mainloop(void (*load_cb)(screen*)
+void screen::mainloop(void (*load_cb)(void)
     , void (*key_event_cb)(char, bool)
     , void (*mouse_motion_event_cb)(float, float, int, int)
     , void (*mouse_button_event_cb)(int, bool, int, int)
-    , void (*update_cb)(double, double, screen*)
+    , void (*update_cb)(double, double)
     , void (*draw_cb)(double)
     , void (*cleanup_cb)(void)) {
-  load_cb(this);
+  load_cb();
 
   const int ticks_per_second = 100, max_update_ticks = 15;
   // everywhere all time is measured in seconds unless otherwise stated
@@ -109,7 +109,7 @@ void screen::mainloop(void (*load_cb)(screen*)
           }
       }
 
-      update_cb(dt, t, this);
+      update_cb(dt, t);
 
       t += dt;
       accumulator -= dt;
@@ -156,6 +156,14 @@ void screen::unlock_mouse() {
 
 inline double screen::get_time_in_seconds() {
   return SDL_GetTicks() / 1000.;
+}
+
+int screen::get_window_width() {
+  return _window_width;
+}
+
+int screen::get_window_height() {
+  return _window_height;
 }
 
 };
