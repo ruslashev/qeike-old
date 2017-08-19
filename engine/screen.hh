@@ -13,6 +13,7 @@ class screen {
   std::string _title;
   int _pre_lock_mouse_x, _pre_lock_mouse_y;
   int _window_width, _window_height;
+  unsigned long long int _frame_idx;
 public:
   bool running;
 
@@ -30,9 +31,10 @@ public:
   double get_time_in_seconds();
   int get_window_width();
   int get_window_height();
+  unsigned long long int get_frame_idx();
 };
 
-extern screen *g_screen;
-
 };
+
+extern qke::screen *g_screen;
 

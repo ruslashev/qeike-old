@@ -10,7 +10,9 @@ screen::screen(const std::string &n_title, int n_window_width
   , _pre_lock_mouse_x(n_window_width / 2)
   , _pre_lock_mouse_y(n_window_height / 2)
   , _window_width(n_window_width)
-  , _window_height(n_window_height) {
+  , _window_height(n_window_height)
+  , _frame_idx(0)
+  , running(true) {
   assertf(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0
       , "failed to init sdl: %s", SDL_GetError());
 
@@ -30,8 +32,6 @@ screen::screen(const std::string &n_title, int n_window_width
       glewGetErrorString(err));
 
   assertf(GLEW_VERSION_2_1, "your graphic card does not support OpenGL 2.1");
-
-  running = true;
 }
 
 screen::~screen() {
@@ -123,6 +123,8 @@ void screen::mainloop(void (*load_cb)(void)
 
     SDL_GL_SwapWindow(_window);
 
+    ++_frame_idx;
+
     { // fps counter
       total_frames++;
       draw_count++;
@@ -164,6 +166,10 @@ int screen::get_window_width() {
 
 int screen::get_window_height() {
   return _window_height;
+}
+
+unsigned long long int screen::get_frame_idx() {
+  return _frame_idx;
 }
 
 };
