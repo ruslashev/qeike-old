@@ -102,7 +102,7 @@ void d3_model::draw(const glm::mat4 &mvp, glm::ivec2 min, glm::ivec2 max
     return;
   _rendered_frame_idx = g_screen->get_frame_idx();
   // TODO try without
-  glScissor(min.x, min.y, max.x - min.x + 1, max.y - min.y + 1);
+  // glScissor(min.x, min.y, max.x - min.x + 1, max.y - min.y + 1);
   for (const d3_surface *s : _surfaces)
     s->draw();
   for (size_t i = 0; i < portals.size(); ++i)
@@ -312,18 +312,27 @@ void d3map::draw(const glm::vec3 &position, const glm::mat4 &mvp
 
   glUniformMatrix4fv(_mvp_mat_unif, 1, GL_FALSE, glm::value_ptr(mvp));
 
-  int start_model = _get_model_idx_by_pos(position);
   glm::ivec2 min = glm::ivec2(0, 0)
     , max = glm::ivec2(g_screen->get_window_width()
         , g_screen->get_window_height());
+#if 0
+  int start_model = _get_model_idx_by_pos(position);
   if (start_model < 0)
     _models[-1 - start_model].draw(mvp, min, max, this);
   else // position is in the void
     for (d3_model &m : _models)
       m.draw(mvp, min, max, this);
+#else
+  // NOTE: I admit that I failed to implement proper portal engine rendering
+  // of Doom 3 levels (in given deadlines). Someday I probably will revisit
+  // this then-forgotten file and this:
+  // https://www.iddevnet.com/doom3/visportals.php
+  for (d3_model &m : _models)
+    m.draw(mvp, min, max, this);
+#endif
 
   // TODO at the end of draw?
-  glScissor(0, 0, g_screen->get_window_width(), g_screen->get_window_height());
+  // glScissor(0, 0, g_screen->get_window_width(), g_screen->get_window_height());
 
   _sp.dont_use_this_prog();
 }
